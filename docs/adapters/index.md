@@ -8,5 +8,4 @@ There are three kinds:
 - [**html**](html.md): CSS selectors over a rendered page, fetched statically or in a headless browser.
 - **python**: built-in adapters only, for sites that need custom code. User-created definitions cannot use this kind.
 
-!!! note "Coming soon"
-    The full schema reference will land here. calsync will also serve the schema as JSON Schema at `/schema/adapter.json`.
+Start with [Concepts](concepts.md), which covers the parts every kind shares: params, the field `map`, templates, validation and safety limits. calsync serves the full schema as JSON Schema at `/schema/adapter.json`.

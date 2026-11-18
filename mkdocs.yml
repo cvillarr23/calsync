@@ -36,5 +36,6 @@ nav:
   - Reverse proxy: reverse-proxy.md
   - Adapters:
       - Overview: adapters/index.md
+      - Concepts: adapters/concepts.md
       - Pipeline kind: adapters/pipeline.md
       - HTML kind: adapters/html.md
