@@ -9,12 +9,10 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from app.adapters.registry import AdapterRegistry
-from app.adapters.routes import router as adapter_router
-from app.api import router as api_router
-from app.db import init_db, make_engine
-from app.feeds import router as feed_router
+from app.api import router
+from app.db.engine import init_db, make_engine
+from app.services.definition_store import DefinitionStore
 from app.settings import Settings, load_settings
-from app.store import DefinitionStore
 
 
 @asynccontextmanager
@@ -31,9 +29,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app = FastAPI(title="calsync", lifespan=lifespan)
     app.state.settings = settings or load_settings()
     app.state.adapters = AdapterRegistry.with_builtins()
-    app.include_router(adapter_router)
-    app.include_router(api_router)
-    app.include_router(feed_router)
+    app.include_router(router)
 
     @app.get("/healthz")
     def healthz() -> dict[str, str]:

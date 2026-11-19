@@ -6,9 +6,11 @@ from sqlalchemy import func, select
 from app.adapters.events import AdapterRunError, ScrapedEvent
 from app.adapters.registry import AdapterRegistry
 from app.adapters.schema import parse_definition
-from app.db import Event, Source, User, init_db, make_engine
-from app.sync import content_hash, matched_events, run_source
+from app.db.engine import init_db, make_engine
+from app.db.models import Event, Source, User
+from app.services.sync import content_hash, matched_events, run_source
 from tests.adapters.conftest import HTML_DEF
+from tests.support import FakeRunner, RecordingTarget
 
 pytestmark = pytest.mark.anyio
 
@@ -26,30 +28,6 @@ FIXTURE = [
     scraped("hockey-1", "Drop-in Hockey", 3),
     scraped("skate-1", "Public Skate", 1, location="Main rink"),  # repeated by an overlapping page
 ]
-
-
-class FakeRunner:
-    def __init__(self, events=None, error=None):
-        self.events = list(events or [])
-        self.error = error
-        self.calls = []
-
-    async def __call__(self, definition, params, window_start, window_end):
-        self.calls.append((definition.id, dict(params), window_start, window_end))
-        if self.error:
-            raise self.error
-        return list(self.events)
-
-
-class RecordingTarget:
-    def __init__(self, error=None):
-        self.error = error
-        self.calls = []
-
-    async def apply(self, db, source, matched, now):
-        self.calls.append([event.uid for event in matched])
-        if self.error:
-            raise self.error
 
 
 @pytest.fixture

@@ -2,7 +2,7 @@ from dataclasses import dataclass
 
 import pytest
 
-from app import filters
+from app.services import filters
 
 
 @dataclass

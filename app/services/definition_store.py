@@ -8,38 +8,20 @@ to the table.
 import logging
 from typing import Any
 
-import yaml
 from pydantic import ValidationError
 from sqlalchemy import select
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.adapters.schema import AdapterDefinition, parse_definition
-from app.db import AdapterDef
+from app.db.models import AdapterDef
+from app.services.definition_text import DefinitionTextError, load_yaml
 
 log = logging.getLogger(__name__)
-
-
-class DefinitionTextError(ValueError):
-    """A definition body isn't valid YAML or JSON, or isn't a mapping."""
 
 
 def parse_user_definition(data: Any) -> AdapterDefinition:
     """Validate a user definition, raising `ValidationError` with field paths."""
     return parse_definition(data, builtin=False)
-
-
-def load_yaml(text: str) -> dict[str, Any]:
-    try:
-        data = yaml.safe_load(text)
-    except yaml.YAMLError as err:
-        raise DefinitionTextError(f"invalid YAML: {err}") from None
-    if not isinstance(data, dict):
-        raise DefinitionTextError("a definition must be a YAML mapping")
-    return data
-
-
-def dump_yaml(data: dict[str, Any]) -> str:
-    return yaml.safe_dump(data, sort_keys=False, allow_unicode=True)
 
 
 def load_row(row: AdapterDef) -> AdapterDefinition:

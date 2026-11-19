@@ -4,15 +4,9 @@ import pytest
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError, StatementError
 
-from app.db import (
-    SCHEMA_VERSION,
-    Event,
-    SchemaVersion,
-    Source,
-    User,
-    init_db,
-    make_engine,
-)
+from app.db.engine import init_db, make_engine
+from app.db.migrations import SCHEMA_VERSION
+from app.db.models import Event, SchemaVersion, Source, User
 
 
 @pytest.fixture
@@ -92,6 +86,6 @@ def test_request_session_commits_before_response():
     could read stale data right after a 201."""
     from typing import get_args
 
-    from app.db import Db
+    from app.db.session import Db
 
     assert get_args(Db)[1].scope == "function"

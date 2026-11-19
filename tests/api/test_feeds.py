@@ -5,10 +5,10 @@ import pytest
 from icalendar import Calendar
 
 from app.adapters.events import ScrapedEvent
-from app.db import Source
-from app.sync import run_source
+from app.db.models import Source
+from app.services.sync import run_source
 from tests.adapters.conftest import HTML_DEF
-from tests.test_sync import FakeRunner
+from tests.support import FakeRunner
 
 SOON = datetime.now(UTC).replace(microsecond=0) + timedelta(days=1)
 

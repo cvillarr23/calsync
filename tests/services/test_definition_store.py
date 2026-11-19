@@ -5,17 +5,11 @@ import yaml
 from pydantic import ValidationError
 
 from app.adapters.registry import AdapterRegistry
-from app.db import AdapterDef, User, init_db, make_engine
-from app.store import DefinitionStore, load_row
+from app.db.engine import init_db, make_engine
+from app.db.models import AdapterDef, User
+from app.services.definition_store import DefinitionStore, load_row
 from tests.adapters.conftest import HTML_DEF
-
-PYTHON_DEF = {
-    "id": "sneaky",
-    "version": 1,
-    "name": "Sneaky",
-    "kind": "python",
-    "entrypoint": "os:system",
-}
+from tests.support import PYTHON_DEF
 
 
 @pytest.fixture
