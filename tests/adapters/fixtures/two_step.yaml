@@ -1,0 +1,25 @@
+# A generic two-step API: an HTML page embeds a config object, and a JSON
+# endpoint takes that object back with a date and answers with a JSON string.
+# tests/adapters/fake_api.py serves it; docs/adapters/pipeline.md walks through it.
+id: two-step-demo
+version: 1
+name: Two-step demo API
+kind: pipeline
+params:
+  page_url: {type: url, description: The public calendar page}
+steps:
+  - http: {url: "{{page_url}}", follow_redirects: false}
+  - extract: {regex: 'app\.config = (\{.*?\});', as: config, parse: json}
+  - paginate: {window: lookahead, step_days: 7, as: date}
+  - http:
+      method: POST
+      url: "{{origin(page_url)}}/api/events"
+      json: {date: "{{date:%Y-%m-%d %H:%M:%S}}", config: "{{config}}"}
+  - extract: {jsonpath: "$.d", parse: json}
+  - items: {jsonpath: "$.Bookings[*]"}
+map:
+  title: {jsonpath: "$.Name", strip: true}
+  start: {jsonpath: "$.StartUtc", tz: UTC}
+  end: {jsonpath: "$.EndUtc", tz: UTC}
+  location: {jsonpath: "$.Room"}
+  skip_if: {jsonpath: "$.Status", equals: -12}

@@ -30,7 +30,7 @@ Each param has a `type` (`url`, `string` or `int`; the default is `string`), an 
 
 | Key | Reads |
 |---|---|
-| `jsonpath` | a JSONPath into a JSON item |
+| `jsonpath` | a JSONPath into a JSON item; the first match is used |
 | `selector` | a CSS selector inside an HTML item, plus optional `attr` to read an attribute instead of the text |
 | `from_context` | a CSS selector matched against the nearest ancestor or preceding element, for grids whose date sits in a header row |
 
@@ -43,7 +43,9 @@ These keys then refine the value:
 - `time_range_regex` on `start` splits text such as `7:00–8:30 PM` into a start and an end, using named groups `start` and `end`, or else groups 1 and 2. A trailing AM or PM on the end also applies to a start that has none.
 - `date` gives the day for a `start` or `end` that holds only a time. An end at or before the start is taken to cross midnight.
 - `default_duration_min` gives the length of an event that has no end. Without it, such an event has no end.
-- `skip_if` takes `equals` and drops items whose value matches it. A number also matches the same number written as text. For example, `skip_if: {jsonpath: "$.StatusTypeId", equals: -12}` drops cancelled bookings.
+- `skip_if` drops items:
+    - With `equals`, it drops items whose value equals it. A number also matches the same number written as text. For example, `skip_if: {jsonpath: "$.StatusTypeId", equals: -12}` drops cancelled bookings.
+    - Without `equals`, it drops items whose value is truthy: `true`, a non-zero number, or a non-empty string, list or object. `skip_if: {jsonpath: "$.cancelled"}` drops items with `"cancelled": true`.
 
 If `title`, `start` or a mapped `date` can't be read from an item, calsync leaves out that item and reports which field failed and why, for example `start: selector 'time' matched nothing`. The rest of the run goes on. Other fields are left empty when they match nothing.
 
@@ -66,6 +68,8 @@ Inside text, objects and lists are written as compact JSON and dates as ISO 8601
 ## Validation and the JSON Schema
 
 calsync validates definitions on the server when you save them, and reports each problem with the path of the field at fault. Unknown keys are errors, so typos don't pass silently.
+
+Regexes, time zones, templates and every `jsonpath` are also parsed when you save. A bad expression such as `$$[[bad` is reported at its path, for example `steps.4.extract.jsonpath`, while you edit rather than on the next sync. Pipeline step order is checked too; see [Pipeline adapters](pipeline.md#step-order).
 
 The schema is published as JSON Schema at `/schema/adapter.json` on your instance. Point your editor at it for completion and inline errors. For example, with the YAML language server:
 
