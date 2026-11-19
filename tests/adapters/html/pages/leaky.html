@@ -1,0 +1,16 @@
+<!doctype html>
+<html><body>
+<div id="schedule"><div class="event"><h3>Static Skate</h3><time datetime="2026-11-21T19:00:00Z"></time></div></div>
+<script src="http://10.0.0.1/steal.js"></script>
+<script>
+  fetch("http://169.254.169.254/latest/meta-data/").then(
+    () => document.title = "leaked",
+    () => {
+      const item = document.createElement("div");
+      item.className = "event";
+      item.innerHTML = '<h3>After Block</h3><time datetime="2026-11-22T19:00:00Z"></time>';
+      document.getElementById("schedule").appendChild(item);
+    }
+  );
+</script>
+</body></html>

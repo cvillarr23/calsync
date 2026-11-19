@@ -275,10 +275,13 @@ class FetchSession:
         headers: Mapping[str, str] | None = None,
         json: Any = None,
         data: Mapping[str, str] | None = None,
+        content: bytes | None = None,
         follow_redirects: bool = True,
     ) -> Page:
         """Fetch one page; cache hits skip the network and don't use the run's budget."""
-        request = self._client.build_request(method, url, headers=headers, json=json, data=data)
+        request = self._client.build_request(
+            method, url, headers=headers, json=json, data=data, content=content
+        )
         key = _cache_key(request)
         cached = self._cache.get(key) if self._cache else None
         if cached is not None:

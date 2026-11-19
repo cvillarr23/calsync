@@ -27,7 +27,7 @@ python -c "import base64, os; print(base64.urlsafe_b64encode(os.urandom(32)).dec
 | `CALSYNC_ALLOWED_EMAILS` | *(empty)* | A comma-separated list of Google accounts allowed to sign in. Matching is case-insensitive. |
 | `CALSYNC_MIN_INTERVAL_MIN` | `30` | The shortest sync interval, in minutes, that a source may use. |
 | `CALSYNC_FETCH_TIMEOUT_S` | `15` | The time limit, in seconds, for each adapter run. |
-| `CALSYNC_FETCH_MAX_PAGES` | `20` | The most pages or requests one adapter run may make. |
+| `CALSYNC_FETCH_MAX_PAGES` | `20` | The most pages or requests one adapter run may make. In [headless mode](adapters/html.md#headless-trade-offs), every script and XHR the page loads counts too. |
 | `CALSYNC_FETCH_MAX_BYTES` | `2097152` | The most bytes (2 MiB) one adapter run may download. |
 | `CALSYNC_FETCH_ALLOW_PRIVATE` | `false` | Allows fetching private, loopback, link-local and CGNAT addresses. Leave this off unless you need it. While it is off, the SSRF guard is active. |
 | `CALSYNC_TRUST_PROXY_HEADERS` | `false` | Uses `X-Forwarded-For` and `X-Forwarded-Proto` for the client address and scheme, accepting them from any peer. Turn this on only when calsync is reachable solely through a reverse proxy you control. See [Reverse proxy](reverse-proxy.md). |
