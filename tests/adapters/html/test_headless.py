@@ -8,7 +8,7 @@ from app.adapters.fetch import BlockedAddress, FetchLimits, PageLimitExceeded
 from app.adapters.html import run_html
 from app.adapters.mapping import Window
 from app.adapters.schema import parse_definition
-from tests.adapters.page_server import AllowTestHost, PageHandler, fake_resolver, serve_pages
+from tests.adapters.html.page_server import AllowTestHost, PageHandler, fake_resolver, serve_pages
 
 pytestmark = pytest.mark.anyio
 
@@ -70,7 +70,7 @@ def titles(result):
 async def test_renders_js_built_page(chromium, server):
     result = await run(APP_DEF, f"{server}/app.html")
     assert titles(result) == ["Public Skate", "Stick and Puck"]
-    assert result.events[0].start == datetime(2026, 11, 21, 19, 0, tzinfo=UTC)
+    assert result.events[0].start_utc == datetime(2026, 11, 21, 19, 0, tzinfo=UTC)
 
 
 async def test_static_mode_sees_no_events_on_the_same_page(server):

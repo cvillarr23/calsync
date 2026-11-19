@@ -42,7 +42,7 @@ def test_named_range_groups_share_meridiem():
         },
         {"t": "Skate", "d": "2027-01-05", "s": "7:00 to 8:30 pm"},
     )
-    assert (event.start, event.end) == (utc(2027, 1, 6, 1, 0), utc(2027, 1, 6, 2, 30))
+    assert (event.start_utc, event.end_utc) == (utc(2027, 1, 6, 1, 0), utc(2027, 1, 6, 2, 30))
 
 
 def test_year_less_format_rolls_into_next_year():
@@ -50,7 +50,7 @@ def test_year_less_format_rolls_into_next_year():
         {"title": {"selector": "t"}, "start": {"selector": "s", "format": "%b %d %H:%M"}},
         {"t": "Skate", "s": "Jan 03 18:00"},
     )
-    assert event.start == utc(2027, 1, 3, 18, 0)
+    assert event.start_utc == utc(2027, 1, 3, 18, 0)
 
 
 def test_explicit_offset_wins_over_tz():
@@ -58,7 +58,7 @@ def test_explicit_offset_wins_over_tz():
         {"title": {"selector": "t"}, "start": {"selector": "s", "tz": "America/Chicago"}},
         {"t": "Skate", "s": "2027-01-05T10:00:00Z"},
     )
-    assert event.start == utc(2027, 1, 5, 10, 0)
+    assert event.start_utc == utc(2027, 1, 5, 10, 0)
 
 
 @pytest.mark.parametrize(("equals", "value"), [(-12, "-12"), ("cancelled", "cancelled")])
@@ -92,4 +92,4 @@ def test_optional_field_that_matches_nothing_is_none():
         {"title": {"selector": "t"}, "start": {"selector": "s"}, "location": {"selector": "l"}},
         {"t": "x", "s": "2027-01-05T10:00:00Z"},
     )
-    assert event.location is None and event.end is None
+    assert event.location is None and event.end_utc is None

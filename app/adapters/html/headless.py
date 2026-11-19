@@ -13,7 +13,6 @@ The browser is launched once per run and always closed.
 
 from collections.abc import AsyncIterator, Awaitable
 from contextlib import asynccontextmanager
-from dataclasses import dataclass
 from typing import Any
 from urllib.parse import urlsplit
 
@@ -36,6 +35,7 @@ from app.adapters.fetch import (
     PageLimitExceeded,
     ResponseTooLarge,
 )
+from app.adapters.html.page import HtmlPage
 
 DEAD_PROXY = "http://127.0.0.1:9"
 """The discard port: nothing listens, so a request that escaped interception fails."""
@@ -51,14 +51,6 @@ _CLOSE_GRACE_S = 10.0
 
 class HeadlessUnavailable(FetchError):
     """Playwright's Chromium isn't installed or won't start."""
-
-
-@dataclass(frozen=True)
-class HtmlPage:
-    """One page's HTML, as served (static) or as rendered (headless)."""
-
-    url: str
-    html: str
 
 
 class _Interceptor:

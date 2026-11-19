@@ -6,7 +6,7 @@ from app.adapters.fetch import BlockedAddress, FetchError, FetchLimits
 from app.adapters.html import run_html
 from app.adapters.mapping import Window
 from app.adapters.schema import parse_definition
-from tests.adapters.page_server import AllowTestHost, PageHandler, fake_resolver, serve_pages
+from tests.adapters.html.page_server import AllowTestHost, PageHandler, fake_resolver, serve_pages
 
 pytestmark = pytest.mark.anyio
 
@@ -68,7 +68,7 @@ def utc(*args):
 
 async def test_list_page(server):
     result = await run(LIST_DEF, {"url": f"{server}/list.html"})
-    rows = [(e.title, e.start, e.end, e.location, e.url) for e in result.events]
+    rows = [(e.title, e.start_utc, e.end_utc, e.location, e.url) for e in result.events]
     assert rows == [
         (
             "Public Skate",
@@ -97,7 +97,7 @@ async def test_missing_field_is_reported_not_raised(server):
 
 async def test_week_grid_dates_from_context_across_dst(server):
     result = await run(WEEK_DEF, {"url": f"{server}/week.html"})
-    rows = [(e.title, e.start, e.end) for e in result.events]
+    rows = [(e.title, e.start_utc, e.end_utc) for e in result.events]
     assert rows == [
         # Saturday is still CDT (UTC-5).
         ("Halloween Skate", utc(2026, 11, 1, 0, 0), utc(2026, 11, 1, 1, 30)),
@@ -139,7 +139,7 @@ async def test_format_and_default_duration(server):
     del data["map"]["end"]
     result = await run(data, {"url": f"{server}/list.html"})
     first = result.events[0]
-    assert (first.start, first.end) == (utc(2026, 11, 21, 19, 0), utc(2026, 11, 21, 19, 45))
+    assert (first.start_utc, first.end_utc) == (utc(2026, 11, 21, 19, 0), utc(2026, 11, 21, 19, 45))
 
 
 async def test_uid_is_stable_and_follows_uid_fields(server):

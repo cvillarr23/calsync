@@ -8,6 +8,9 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
+from app.adapters.events import ENGINES
+from app.adapters.fetch import FetchLimits
+from app.adapters.html import HtmlEngine
 from app.adapters.registry import AdapterRegistry
 from app.api import router
 from app.db.engine import init_db, make_engine
@@ -25,10 +28,16 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     engine.dispose()
 
 
+def _register_engines(settings: Settings) -> None:
+    """Engines need the instance's fetch limits, so they're registered once settings exist."""
+    ENGINES["html"] = HtmlEngine(FetchLimits.from_settings(settings))
+
+
 def create_app(settings: Settings | None = None) -> FastAPI:
     app = FastAPI(title="calsync", lifespan=lifespan)
     app.state.settings = settings or load_settings()
     app.state.adapters = AdapterRegistry.with_builtins()
+    _register_engines(app.state.settings)
     app.include_router(router)
 
     @app.get("/healthz")
