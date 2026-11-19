@@ -70,7 +70,7 @@ The step fails if nothing matches.
 
 ### `paginate`
 
-Repeats the steps after it once per date across the window being synced. The window starts today and runs for the source's lookahead (60 days by default).
+Repeats the steps after it once per date across the window being synced. The window starts at the time of the sync and runs for the source's lookahead (60 days by default). Pages start at midnight UTC on the window's first date and run through its last date. Pages often reach past the window, so after the run, events that end before the window or start after it are dropped.
 
 | Field | Meaning |
 |---|---|
@@ -88,14 +88,10 @@ Turns the document into the list of event records, using every match of `jsonpat
 
 ## Mapping records to events
 
-Each `map` field reads a value with `jsonpath`, then refines it as [Concepts](concepts.md#the-field-map) describes. In pipelines:
+Each `map` field reads the first match of its `jsonpath` in the record. Every adapter kind maps fields the same way after that: `regex`, `strip`, dates and times, time zones, time ranges, default durations and `skip_if` work as [Concepts](concepts.md#the-field-map) describes. In pipelines:
 
-- **Text fields.** `title` must produce a non-empty value. `location`, `description` and `url` are left empty when nothing matches.
-- **`start` and `end`.** These are parsed with `format` (a strftime pattern) when one is given, and with dateparser otherwise. A value without a UTC offset is read in `tz`, or in UTC when `tz` isn't set. calsync stores times in UTC.
-- **`date`.** Set this when a record keeps the day and the time apart. A time-only `start` or `end` is placed on that day.
-- **`time_range_regex`.** Set this on `start` when one value holds both times. Group 1 is the start and group 2 the end. A trailing AM/PM on the end also applies to the start, so `7:00–8:30 PM` gives 19:00 to 20:30.
-- **`default_duration_min`.** Set this on `start` or `end`. It supplies the end when there isn't one.
-- **`skip_if`.** This drops a record before the other fields are read. Without `equals`, any truthy value drops it.
+- A JSONPath reads JSON values, so `skip_if: {jsonpath: "$.Status", equals: -12}` compares numbers. A field that reads a list or an object uses its JSON value. Point the path at the scalar you want, such as `$.Times[0]`.
+- `selector` and `from_context` fields aren't supported in pipelines yet. Items that use them are reported as unreadable.
 
 ### Uids and duplicates
 
@@ -116,18 +112,20 @@ step 1 (extract): regex 'app\.config = (\{.*?\});' matched nothing
 step 3 (http): POST https://calendar.example.org/api/events returned HTTP 500
 ```
 
-A failing field names the record's position in the item list and the field:
+A step error stops the run. A field that can't be read only drops its own record. calsync reports the record's position in the item list, counting from 0, plus the field and the reason:
 
 ```text
-item 4, map.start: can't parse 'TBA' as a date and time
+item 4: start: can't read a date or time from 'TBA'
 ```
+
+If no record could be read at all, the sync fails with the first reason, so a broken definition can't empty the calendar. The command line below prints each dropped record on stderr.
 
 ## Trying a definition from the command line
 
 You can run a definition file without the web UI. The command prints the events it would sync:
 
 ```bash
-uv run python -m app.adapters.engine my-site.yaml page_url=https://calendar.example.org/rink \
+uv run python -m app.adapters.pipeline my-site.yaml page_url=https://calendar.example.org/rink \
     --days 21
 ```
 
@@ -207,4 +205,4 @@ start (UTC)       end (UTC)         title           location
 3 event(s)
 ```
 
-calsync's own test suite runs this exact definition against a fake server built this way, in `tests/adapters/fake_api.py`.
+calsync's own test suite runs this exact definition against a fake server built this way, in `tests/adapters/pipeline/fake_api.py`.

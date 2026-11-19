@@ -2,8 +2,6 @@ import copy
 
 import pytest
 
-from tests.adapters import fake_api as fake_api_module
-
 UW_EMS = {
     "id": "uw-ems",
     "version": 1,
@@ -64,11 +62,3 @@ def html_def():
 @pytest.fixture
 def anyio_backend():
     return "asyncio"
-
-
-@pytest.fixture(scope="module")
-def fake_api():
-    """Base URL of a running fake two-step API; see tests/adapters/fake_api.py."""
-    httpd, base_url = fake_api_module.serve()
-    yield base_url
-    httpd.shutdown()

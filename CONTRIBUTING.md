@@ -29,6 +29,9 @@ app/
     html/              the html kind: pages.py (which URLs, static or headless),
                        headless.py (Chromium behind the fetch guard), extract.py
                        (selectolax items and fields), run.py (run_html, HtmlEngine)
+    pipeline/          the pipeline kind: steps.py (http, extract, paginate, items),
+                       read.py (JSONPath fields for mappers), run.py (run_pipeline,
+                       PipelineEngine), cli.py (`python -m app.adapters.pipeline`)
   db/
     base.py            declarative Base and shared column types
     engine.py          opening the SQLite file, creating the schema
