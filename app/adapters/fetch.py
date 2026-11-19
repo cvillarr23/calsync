@@ -7,12 +7,14 @@ own guarded connection.
 """
 
 import asyncio
+import importlib.metadata
 import ipaddress
 import socket
 import time
 from collections import OrderedDict
 from collections.abc import Awaitable, Callable, Iterable, Mapping
 from dataclasses import dataclass
+from http.cookiejar import Cookie
 from typing import Any
 
 import anyio
@@ -21,11 +23,19 @@ import httpx
 
 from app.settings import Settings
 
-DEFAULT_USER_AGENT = "calsync/0.1 (+https://github.com/cvillarr23/calsync)"
+DEFAULT_USER_AGENT = f"calsync/{importlib.metadata.version('calsync')}"
 
 IPAddress = ipaddress.IPv4Address | ipaddress.IPv6Address
 Resolver = Callable[[str, int], Awaitable[list[str]]]
-CacheKey = tuple[str, str, bytes]
+CacheKey = tuple[str, str, tuple[tuple[str, str], ...], bytes]
+
+# IPv6 ranges that embed an IPv4 address `is_global` can't see through:
+# IPv4-compatible (::a.b.c.d) and NAT64 prefixes.
+_EMBEDDED_V4_NETS = (
+    ipaddress.ip_network("::/96"),
+    ipaddress.ip_network("64:ff9b::/96"),
+    ipaddress.ip_network("64:ff9b:1::/48"),
+)
 
 
 class FetchError(RuntimeError):
@@ -82,6 +92,8 @@ class AddressGuard:
         if self.allow_private:
             return True
         ip = _unmapped(ip)
+        if isinstance(ip, ipaddress.IPv6Address) and any(ip in n for n in _EMBEDDED_V4_NETS):
+            return False
         return ip.is_global and not ip.is_multicast
 
 
@@ -118,8 +130,16 @@ class _GuardedBackend(httpcore.AsyncNetworkBackend):
         local_address: str | None = None,
         socket_options: Iterable[Any] | None = None,
     ) -> httpcore.AsyncNetworkStream:
-        address = await self._vetted_address(host, port)
-        return await self._inner.connect_tcp(address, port, timeout, local_address, socket_options)
+        last_error: Exception | None = None
+        for address in await self._vetted_addresses(host, port):
+            try:
+                return await self._inner.connect_tcp(
+                    address, port, timeout, local_address, socket_options
+                )
+            except (httpcore.ConnectError, OSError) as err:
+                last_error = err
+        assert last_error is not None
+        raise last_error
 
     async def connect_unix_socket(self, *args: Any, **kwargs: Any) -> httpcore.AsyncNetworkStream:
         raise BlockedAddress("unix sockets are not allowed")
@@ -127,15 +147,15 @@ class _GuardedBackend(httpcore.AsyncNetworkBackend):
     async def sleep(self, seconds: float) -> None:
         await self._inner.sleep(seconds)
 
-    async def _vetted_address(self, host: str, port: int) -> str:
-        """The first address, provided every address the host resolves to is allowed."""
+    async def _vetted_addresses(self, host: str, port: int) -> list[str]:
+        """All addresses in resolver order, provided every one of them is allowed."""
         addresses = await self._resolver(host, port)
         if not addresses:
             raise FetchError(f"can't resolve {host}")
         for address in addresses:
             if not self._guard.is_allowed(host, ipaddress.ip_address(address)):
                 raise BlockedAddress(f"{host} resolves to non-public address {address}")
-        return addresses[0]
+        return addresses
 
 
 class _GuardedTransport(httpx.AsyncHTTPTransport):
@@ -166,8 +186,19 @@ class Page:
         return self.content.decode(self.encoding or "utf-8", errors="replace")
 
 
+@dataclass(frozen=True)
+class _CacheEntry:
+    stored_at: float
+    page: Page
+    cookies: tuple[Cookie, ...]
+
+
 class PageCache:
-    """Short-lived page cache for previews, so editing selectors doesn't hammer the site."""
+    """Short-lived page cache for previews, so editing selectors doesn't hammer the site.
+
+    Only 2xx pages are stored. Each entry keeps the cookies its fetch set, so a hit
+    leaves the session's cookie jar as a real fetch would.
+    """
 
     def __init__(
         self,
@@ -178,19 +209,19 @@ class PageCache:
         self._ttl_s = ttl_s
         self._max_entries = max_entries
         self._clock = clock
-        self._entries: OrderedDict[CacheKey, tuple[float, Page]] = OrderedDict()
+        self._entries: OrderedDict[CacheKey, _CacheEntry] = OrderedDict()
 
-    def get(self, key: CacheKey) -> Page | None:
+    def get(self, key: CacheKey) -> _CacheEntry | None:
         entry = self._entries.get(key)
         if entry is None:
             return None
-        if self._clock() - entry[0] > self._ttl_s:
+        if self._clock() - entry.stored_at > self._ttl_s:
             del self._entries[key]
             return None
-        return entry[1]
+        return entry
 
-    def put(self, key: CacheKey, page: Page) -> None:
-        self._entries[key] = (self._clock(), page)
+    def put(self, key: CacheKey, page: Page, cookies: Iterable[Cookie] = ()) -> None:
+        self._entries[key] = _CacheEntry(self._clock(), page, tuple(cookies))
         self._entries.move_to_end(key)
         while len(self._entries) > self._max_entries:
             self._entries.popitem(last=False)
@@ -251,10 +282,14 @@ class FetchSession:
         key = _cache_key(request)
         cached = self._cache.get(key) if self._cache else None
         if cached is not None:
-            return cached
+            for cookie in cached.cookies:
+                self._client.cookies.jar.set_cookie(cookie)
+            return cached.page
+        jar_before = {_cookie_id(c) for c in self._client.cookies.jar}
         page = await self._send_within_deadline(request, follow_redirects)
-        if self._cache:
-            self._cache.put(key, page)
+        if self._cache and 200 <= page.status_code < 300:
+            set_here = [c for c in self._client.cookies.jar if _cookie_id(c) not in jar_before]
+            self._cache.put(key, page, set_here)
         return page
 
     async def _count_request(self, request: httpx.Request) -> None:
@@ -276,13 +311,17 @@ class FetchSession:
             raise FetchError(f"{request.method} {request.url}: {err}") from None
 
     async def _send(self, request: httpx.Request, follow: bool) -> Page:
-        response = await self._client.send(request, stream=True, follow_redirects=follow)
-        try:
-            self._check_declared_size(response)
-            content = await self._read_capped(response)
-        finally:
-            await response.aclose()
-        return _page(response, content)
+        """Follow redirects here, not in httpx, so every hop's body goes through the byte cap."""
+        while True:
+            response = await self._client.send(request, stream=True, follow_redirects=False)
+            try:
+                self._check_declared_size(response)
+                content = await self._read_capped(response)
+            finally:
+                await response.aclose()
+            if not (follow and response.next_request is not None):
+                return _page(response, content)
+            request = response.next_request
 
     def _check_declared_size(self, response: httpx.Response) -> None:
         """Fail before downloading when Content-Length already breaks the budget."""
@@ -308,7 +347,12 @@ class FetchSession:
 
 
 def _cache_key(request: httpx.Request) -> CacheKey:
-    return request.method, str(request.url), request.content
+    headers = tuple(sorted((k.lower(), v) for k, v in request.headers.multi_items()))
+    return request.method, str(request.url), headers, request.content
+
+
+def _cookie_id(cookie: Cookie) -> tuple[str, str, str, str | None]:
+    return cookie.domain, cookie.path, cookie.name, cookie.value
 
 
 def _page(response: httpx.Response, content: bytes) -> Page:
