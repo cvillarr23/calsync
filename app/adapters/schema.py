@@ -22,6 +22,7 @@ from pydantic import (
     model_validator,
 )
 from pydantic_core import PydanticCustomError
+from selectolax.lexbor import LexborHTMLParser, SelectolaxError
 
 from app.adapters import template
 
@@ -61,13 +62,24 @@ def _valid_tz(name: str) -> str:
     return name
 
 
+def _valid_selector(selector: str) -> str:
+    """Compile the selector now, so a typo fails when the definition is saved, not mid-run."""
+    try:
+        _SELECTOR_PROBE.css(selector)
+    except SelectolaxError:
+        raise ValueError(f"invalid CSS selector {selector!r}") from None
+    return selector
+
+
+_SELECTOR_PROBE = LexborHTMLParser("")
+
 Identifier = Annotated[str, StringConstraints(pattern=r"^[A-Za-z_][A-Za-z0-9_]*$")]
 Slug = Annotated[str, StringConstraints(pattern=r"^[a-z0-9][a-z0-9-]{0,62}$")]
 TemplateStr = Annotated[str, AfterValidator(_valid_template)]
 Regex = Annotated[str, AfterValidator(_valid_regex)]
 CaptureRegex = Annotated[str, AfterValidator(_capturing_regex)]
 TzName = Annotated[str, AfterValidator(_valid_tz)]
-Selector = Annotated[str, StringConstraints(min_length=1)]
+Selector = Annotated[str, StringConstraints(min_length=1), AfterValidator(_valid_selector)]
 JsonScalar = str | int | float | bool
 
 MapFieldName = Literal["title", "start", "end", "date", "location", "description", "url"]
@@ -216,7 +228,9 @@ def _step_counts(steps: list[Step]) -> list[Step]:
 
 
 class HtmlFetch(_Model):
-    url: TemplateStr
+    url: TemplateStr | None = Field(
+        None, description="The page to read; omit it when pagination.mode is url_template."
+    )
     mode: Literal["static", "headless"] = "static"
     wait_for: Selector | None = None
     user_agent: str | None = None
@@ -377,12 +391,23 @@ def _step_outputs(step: Step) -> set[str]:
 
 def _html_problems(definition: HtmlDefinition) -> Iterator[Problem]:
     params = set(definition.params)
-    yield from _template_problem(("fetch", "url"), definition.fetch.url, params)
+    yield from _page_url_problems(definition)
+    if definition.fetch.url is not None:
+        yield from _template_problem(("fetch", "url"), definition.fetch.url, params)
     if definition.pagination.url_template:
         loc = ("pagination", "url_template")
         yield from _template_problem(loc, definition.pagination.url_template, params | {"date"})
     if definition.fetch.mode != "headless":
         yield from _headless_only_problems(definition)
+
+
+def _page_url_problems(definition: HtmlDefinition) -> Iterator[Problem]:
+    """Each mode has one URL source: url_template builds every page's URL, fetch.url otherwise."""
+    templated = definition.pagination.mode == "url_template"
+    if templated and definition.fetch.url is not None:
+        yield ("fetch", "url"), "omit fetch.url; url_template gives each page's URL", None
+    if not templated and definition.fetch.url is None:
+        yield ("fetch", "url"), "fetch.url is required unless pagination.mode is url_template", None
 
 
 def _headless_only_problems(definition: HtmlDefinition) -> Iterator[Problem]:

@@ -138,6 +138,7 @@ def test_pagination_fields_must_match_mode(html_def):
 
 
 def test_url_template_knows_date(html_def):
+    del html_def["fetch"]["url"]
     html_def["pagination"] = {
         "mode": "url_template",
         "url_template": "{{url}}?week={{date:%Y-%m-%d}}",
@@ -146,6 +147,39 @@ def test_url_template_knows_date(html_def):
     assert parse_definition(html_def).pagination.step_days == 7
     html_def["pagination"]["url_template"] = "{{url}}?week={{day}}"
     assert locs(html_def) == ["pagination.url_template"]
+
+
+def test_url_template_replaces_fetch_url(html_def):
+    html_def["pagination"] = {
+        "mode": "url_template",
+        "url_template": "{{url}}?week={{date:%Y-%m-%d}}",
+        "step_days": 7,
+    }
+    assert locs(html_def) == ["fetch.url"]
+
+
+def test_fetch_url_required_without_url_template(html_def):
+    del html_def["fetch"]["url"]
+    assert locs(html_def) == ["fetch.url"]
+
+
+@pytest.mark.parametrize(
+    ("path", "loc"),
+    [
+        (("item",), "item"),
+        (("map", "title", "selector"), "map.title.selector"),
+        (("fetch", "wait_for"), "fetch.wait_for"),
+    ],
+)
+def test_bad_css_selector_is_a_field_error(html_def, path, loc):
+    html_def["fetch"]["mode"] = "headless"
+    target = html_def
+    for key in path[:-1]:
+        target = target[key]
+    target[path[-1]] = "<<>>"
+    rows = errors_for(html_def)
+    assert [row["loc"] for row in rows] == [loc]
+    assert "invalid CSS selector '<<>>'" in rows[0]["msg"]
 
 
 PYTHON_DEF = {

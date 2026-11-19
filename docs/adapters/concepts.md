@@ -38,11 +38,16 @@ These keys then refine the value:
 
 - `regex` keeps the first capture group, or the whole match if there is none.
 - `strip` trims whitespace.
-- `tz` is an IANA time zone, such as `UTC` or `America/Los_Angeles`.
-- `format` is a strftime pattern. Without one, calsync parses the date with dateparser.
-- `time_range_regex` splits text such as `7:00–8:30 PM` into a start and an end.
-- `default_duration_min` gives the length of an event that has no end.
-- `skip_if` takes `equals` and drops items whose value matches it. For example, `skip_if: {jsonpath: "$.StatusTypeId", equals: -12}` drops cancelled bookings.
+- `tz` is an IANA time zone, such as `UTC` or `America/Los_Angeles`. It applies to times that carry no offset of their own; a time with an offset or `Z` keeps it. Without `tz` on `start` or `date`, times are read as UTC. `end` falls back to the start's zone.
+- `format` is a strftime pattern. Without one, calsync parses the date with dateparser. Year-less dates get the year that puts them nearest after the start of the sync window.
+- `time_range_regex` on `start` splits text such as `7:00–8:30 PM` into a start and an end, using named groups `start` and `end`, or else groups 1 and 2. A trailing AM or PM on the end also applies to a start that has none.
+- `date` gives the day for a `start` or `end` that holds only a time. An end at or before the start is taken to cross midnight.
+- `default_duration_min` gives the length of an event that has no end. Without it, such an event has no end.
+- `skip_if` takes `equals` and drops items whose value matches it. A number also matches the same number written as text. For example, `skip_if: {jsonpath: "$.StatusTypeId", equals: -12}` drops cancelled bookings.
+
+If `title`, `start` or a mapped `date` can't be read from an item, calsync leaves out that item and reports which field failed and why, for example `start: selector 'time' matched nothing`. The rest of the run goes on. Other fields are left empty when they match nothing.
+
+Each event gets a stable uid, hashed from the `uid` fields. Without `uid`, those fields are `title`, `start` and `location`.
 
 ## Templates
 
