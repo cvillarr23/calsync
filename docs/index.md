@@ -9,7 +9,7 @@ Many community calendars have no `.ics` export: room-booking systems, rec-center
 - **Schedule.** Each source re-syncs on its own interval.
 
 !!! note "Early development"
-    calsync is under active development. These pages fill in as features land.
+    calsync is under active development. Some pages describe features that haven't landed yet.
 
 ## Where to next
 
