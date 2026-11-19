@@ -6,8 +6,8 @@ Everything after that is the same for every kind: `regex` and `strip`, date and
 time parsing, time zones, time ranges, default durations, `skip_if` and the uid.
 """
 
-from app.adapters.mapping.errors import FieldFailure
-from app.adapters.mapping.item import Reader, map_item
-from app.adapters.mapping.window import Window
+from app.adapters.mappers.errors import FieldFailure
+from app.adapters.mappers.item import Reader, map_item
+from app.adapters.mappers.window import Window
 
 __all__ = ["FieldFailure", "Reader", "Window", "map_item"]

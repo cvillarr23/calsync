@@ -8,7 +8,7 @@ from app.adapters import template
 from app.adapters.fetch import DEFAULT_USER_AGENT, FetchError, FetchLimits, FetchSession
 from app.adapters.html.headless import headless_browser
 from app.adapters.html.page import HtmlPage
-from app.adapters.mapping import Window
+from app.adapters.mappers import Window
 from app.adapters.schema import HtmlDefinition
 
 

@@ -7,8 +7,8 @@ from zoneinfo import ZoneInfo
 
 import dateparser
 
-from app.adapters.mapping.errors import FieldFailure
-from app.adapters.mapping.window import Window
+from app.adapters.mappers.errors import FieldFailure
+from app.adapters.mappers.window import Window
 from app.adapters.schema import FieldMap, FieldSpec
 
 _DAY_DIRECTIVES = re.compile(r"%[djxcaAuwUW]")

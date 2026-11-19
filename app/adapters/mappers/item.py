@@ -8,9 +8,9 @@ from datetime import datetime
 from typing import Any
 
 from app.adapters.events import ScrapedEvent
-from app.adapters.mapping.errors import FieldFailure
-from app.adapters.mapping.times import event_times, text_or_none
-from app.adapters.mapping.window import Window
+from app.adapters.mappers.errors import FieldFailure
+from app.adapters.mappers.times import event_times, text_or_none
+from app.adapters.mappers.window import Window
 from app.adapters.schema import FieldMap, FieldSpec
 
 Reader = Callable[[FieldSpec, str], Any]

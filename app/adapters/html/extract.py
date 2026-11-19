@@ -6,7 +6,7 @@ from selectolax.lexbor import LexborHTMLParser, LexborNode
 
 from app.adapters.html.page import HtmlPage
 from app.adapters.html.result import FieldProblem, RunResult
-from app.adapters.mapping import FieldFailure, Reader, Window, map_item
+from app.adapters.mappers import FieldFailure, Reader, Window, map_item
 from app.adapters.schema import FieldSpec, HtmlDefinition
 
 

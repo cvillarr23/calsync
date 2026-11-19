@@ -6,7 +6,7 @@ import pytest
 
 from app.adapters.fetch import BlockedAddress, FetchLimits, PageLimitExceeded
 from app.adapters.html import run_html
-from app.adapters.mapping import Window
+from app.adapters.mappers import Window
 from app.adapters.schema import parse_definition
 from tests.adapters.html.page_server import AllowTestHost, PageHandler, fake_resolver, serve_pages
 

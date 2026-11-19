@@ -2,7 +2,7 @@ from datetime import UTC, date, datetime
 
 import pytest
 
-from app.adapters.mapping import FieldFailure, Window, map_item
+from app.adapters.mappers import FieldFailure, Window, map_item
 from app.adapters.schema import FieldMap
 
 WINDOW = Window(start=date(2026, 12, 20), end=date(2027, 1, 31))

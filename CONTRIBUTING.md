@@ -24,7 +24,7 @@ app/
   serve.py             container entry point
   adapters/            adapter definitions: schema, templates, fetch layer, registry,
                        the runner contract (events.py) and the engines for each kind
-    mapping/           the field `map`, shared by every kind: item → ScrapedEvent
+    mappers/           the field `map`, shared by every kind: item → ScrapedEvent
                        (item.py) and date/time handling (times.py)
     html/              the html kind: pages.py (which URLs, static or headless),
                        headless.py (Chromium behind the fetch guard), extract.py

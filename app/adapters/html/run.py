@@ -17,7 +17,7 @@ from app.adapters.fetch import (
 from app.adapters.html.extract import extract
 from app.adapters.html.pages import fetch_pages
 from app.adapters.html.result import RunResult
-from app.adapters.mapping import Window
+from app.adapters.mappers import Window
 from app.adapters.schema import AdapterDefinition, HtmlDefinition
 
 
