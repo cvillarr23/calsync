@@ -200,3 +200,10 @@ def test_python_kind_is_builtin_only():
 
 def test_python_entrypoint_format():
     assert locs({**PYTHON_DEF, "entrypoint": "os.system"}, builtin=True) == ["entrypoint"]
+
+
+def test_equals_only_applies_to_skip_if(uw_ems):
+    uw_ems["map"]["title"]["equals"] = "x"
+    [error] = errors_for(uw_ems)
+    assert error["loc"] == "map"
+    assert error["msg"].endswith("title: equals only applies to skip_if")

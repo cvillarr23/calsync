@@ -4,6 +4,10 @@ calsync is a self-hosted web app. It reads community calendars that have no `.ic
 
 **Documentation:** <https://cvillarr23.github.io/calsync/>
 
+## Run with Docker
+
+The image is `ghcr.io/cvillarr23/calsync` (amd64 and arm64). See the [quickstart](https://cvillarr23.github.io/calsync/quickstart/) for the `docker run` command and the required variables.
+
 ## Development
 
 ```sh

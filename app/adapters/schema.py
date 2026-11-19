@@ -144,6 +144,14 @@ class FieldMap(_Model):
     url: FieldSpec | None = None
     skip_if: FieldSpec | None = None
 
+    @model_validator(mode="after")
+    def _equals_only_on_skip_if(self) -> "FieldMap":
+        for name in type(self).model_fields:
+            spec = getattr(self, name)
+            if name != "skip_if" and spec is not None and spec.equals is not None:
+                raise ValueError(f"{name}: equals only applies to skip_if")
+        return self
+
 
 class HttpSpec(_Model):
     method: Literal["GET", "POST"] = "GET"
