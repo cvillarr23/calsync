@@ -18,7 +18,7 @@ The host is your `CALSYNC_BASE_URL`, and the token is a long random string calsy
 ## What's in a feed
 
 - Each event's `UID` stays the same across syncs, so calendar apps update the event in place instead of adding duplicates.
-- An event that leaves the source site, or stops passing the filters, disappears from the feed. Past events are dropped from the feed once they end.
+- An event that leaves the source site, or stops passing the filters, disappears from the feed. If a run returns no events at all while future events are stored, calsync treats it as a failure and removes nothing, because an error page or a site redesign looks the same as an empty schedule. Past events are dropped from the feed once they end.
 - The calendar is named after the source (`X-WR-CALNAME`).
 - If the adapter gives no end time, the event is shown as one hour long.
 - Changing a source's filters changes the feed straight away, without waiting for the next sync.

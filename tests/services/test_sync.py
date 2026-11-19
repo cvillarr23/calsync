@@ -119,10 +119,24 @@ async def test_future_events_gone_from_site_are_removed_but_past_kept(db, source
     started = scraped("early", "Public Skate", 0.5)
     await sync(db, source, registry, FakeRunner([started, *FIXTURE]))
     later = NOW + timedelta(days=1, hours=12)
-    result = await sync(db, source, registry, FakeRunner([]), now=later)
+    result = await sync(db, source, registry, FakeRunner([started]), now=later)
 
     assert result.removed == 2  # theme-1 and hockey-1 are still in the future
     assert set(stored(db, source)) == {"early", "skate-1"}
+
+
+async def test_empty_run_fails_instead_of_removing_future_events(db, source, registry):
+    await sync(db, source, registry, FakeRunner(FIXTURE))
+    result = await sync(db, source, registry, FakeRunner([]))
+
+    assert result.status == "error"
+    assert "returned no events" in result.error
+    assert len(stored(db, source)) == 3
+
+
+async def test_empty_run_is_fine_when_nothing_future_is_stored(db, source, registry):
+    result = await sync(db, source, registry, FakeRunner([]))
+    assert (result.status, result.fetched) == ("ok", 0)
 
 
 async def test_matched_events_filters_and_skips_ended(db, source, registry):

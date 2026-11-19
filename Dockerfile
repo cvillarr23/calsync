@@ -21,7 +21,10 @@ COPY app ./app
 COPY adapters ./adapters
 RUN uv sync --locked --no-dev
 
-RUN mkdir -p /data && chown pwuser:pwuser /data
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends tini \
+    && rm -rf /var/lib/apt/lists/* \
+    && mkdir -p /data && chown pwuser:pwuser /data
 
 ENV PATH=/app/.venv/bin:$PATH \
     CALSYNC_DATA_DIR=/data
@@ -33,4 +36,6 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
     CMD ["python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/healthz', timeout=4)"]
 
+# tini reaps the Chromium helper processes that re-parent to PID 1 after headless runs.
+ENTRYPOINT ["/usr/bin/tini", "--"]
 CMD ["python", "-m", "app.serve"]

@@ -4,7 +4,7 @@ from datetime import UTC, date, datetime
 
 import pytest
 
-from app.adapters.fetch import BlockedAddress, FetchLimits, PageLimitExceeded
+from app.adapters.fetch import BlockedAddress, FetchError, FetchLimits, PageLimitExceeded
 from app.adapters.html import run_html
 from app.adapters.mappers import Window
 from app.adapters.schema import parse_definition
@@ -82,6 +82,17 @@ async def test_click_next_until_disabled(chromium, server):
     data = {**APP_DEF, "pagination": {"mode": "click_next", "selector": "#next", "max_pages": 5}}
     result = await run(data, f"{server}/pager.html")
     assert titles(result) == ["Week one skate", "Week two skate", "Week three skate"]
+
+
+async def test_click_next_waits_for_delayed_page_swap(chromium, server):
+    data = {**APP_DEF, "pagination": {"mode": "click_next", "selector": "#next", "max_pages": 5}}
+    result = await run(data, f"{server}/slow_pager.html")
+    assert titles(result) == ["Week one skate", "Week two skate", "Week three skate"]
+
+
+async def test_error_page_fails_the_run(chromium, server):
+    with pytest.raises(FetchError, match="HTTP 404"):
+        await run(APP_DEF, f"{server}/missing.html")
 
 
 async def test_click_next_stops_at_max_pages(chromium, server):

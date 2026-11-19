@@ -20,6 +20,11 @@ def store_events(
     """
     result = SyncResult(status="ok", fetched=len(scraped))
     existing = {event.uid: event for event in _stored(db, source)}
+    if not scraped and any(event.start_utc >= now for event in existing.values()):
+        raise AdapterRunError(
+            "the adapter returned no events, so nothing was removed; "
+            "check the site or the definition"
+        )
     fresh = _dedupe(scraped)
     for item in fresh.values():
         _upsert(db, source, existing.get(item.uid), item, now, result)

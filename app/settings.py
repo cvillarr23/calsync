@@ -1,5 +1,7 @@
 """Runtime configuration, read from environment variables only."""
 
+import base64
+import binascii
 from pathlib import Path
 from typing import Annotated, Any
 
@@ -35,6 +37,17 @@ class Settings(BaseSettings):
     fetch_max_bytes: int = _env("CALSYNC_FETCH_MAX_BYTES", 2 * MIB, ge=1)
     fetch_allow_private: bool = _env("CALSYNC_FETCH_ALLOW_PRIVATE", False)
     trust_proxy_headers: bool = _env("CALSYNC_TRUST_PROXY_HEADERS", False)
+
+    @field_validator("token_enc_key")
+    @classmethod
+    def _fernet_key(cls, value: SecretStr) -> SecretStr:
+        try:
+            raw = base64.urlsafe_b64decode(value.get_secret_value().encode())
+        except (binascii.Error, ValueError):
+            raw = b""
+        if len(raw) != 32:
+            raise ValueError("must be a Fernet key: 32 bytes, url-safe base64 encoded")
+        return value
 
     @field_validator("allowed_emails", mode="before")
     @classmethod

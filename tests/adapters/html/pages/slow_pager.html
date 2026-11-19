@@ -1,0 +1,23 @@
+<!doctype html>
+<html><body>
+<div id="schedule"></div>
+<button id="next">Next week</button>
+<script>
+  // Like pager.html, but each click swaps the next week in after a delay, as an
+  // XHR-driven pager would, so the old week is still in the DOM right after it.
+  const weeks = [
+    [["Week one skate", "2026-11-02T18:00:00Z"]],
+    [["Week two skate", "2026-11-09T18:00:00Z"]],
+    [["Week three skate", "2026-11-16T18:00:00Z"]],
+  ];
+  let week = 0;
+  function show() {
+    document.getElementById("schedule").innerHTML = weeks[week]
+      .map(([title, start]) => `<div class="event"><h3>${title}</h3><time datetime="${start}"></time></div>`)
+      .join("");
+    document.getElementById("next").disabled = week === weeks.length - 1;
+  }
+  document.getElementById("next").addEventListener("click", () => { week += 1; setTimeout(show, 400); });
+  show();
+</script>
+</body></html>

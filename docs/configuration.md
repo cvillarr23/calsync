@@ -10,7 +10,7 @@ calsync reads its configuration from environment variables only. If a required v
 | `GOOGLE_CLIENT_ID` | The OAuth web client ID. See [Google OAuth](google-oauth.md). |
 | `GOOGLE_CLIENT_SECRET` | The OAuth web client secret. |
 | `CALSYNC_SESSION_SECRET` | A random string that signs session cookies. Use at least 32 random bytes. |
-| `CALSYNC_TOKEN_ENC_KEY` | A Fernet key that encrypts stored Google refresh tokens. |
+| `CALSYNC_TOKEN_ENC_KEY` | A Fernet key (32 bytes, url-safe base64) that encrypts stored Google refresh tokens. calsync refuses to start if the value isn't a valid key. |
 
 You can generate the two secrets with:
 
