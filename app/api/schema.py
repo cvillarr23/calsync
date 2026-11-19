@@ -1,4 +1,4 @@
-"""HTTP routes for adapter definitions."""
+"""The adapter definition JSON Schema, for editors and other clients."""
 
 from typing import Any
 
