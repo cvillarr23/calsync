@@ -105,6 +105,36 @@ def test_pipeline_needs_one_items_step(uw_ems):
     assert locs(uw_ems) == ["steps"]
 
 
+def test_items_must_be_the_last_step(uw_ems):
+    steps = uw_ems["steps"]
+    uw_ems["steps"] = [steps[5], steps[0], steps[2], steps[3]]
+    assert {"loc": "steps.0", "msg": "items must be the last step"} in errors_for(uw_ems)
+
+
+def test_paginate_needs_an_http_step_after_it(uw_ems):
+    steps = uw_ems["steps"]
+    uw_ems["steps"] = [steps[0], steps[1], steps[2], steps[5]]
+    assert locs(uw_ems) == ["steps.2"]
+
+
+@pytest.mark.parametrize(
+    ("path", "loc"),
+    [
+        (("steps", 4, "extract"), "steps.4.extract.jsonpath"),
+        (("steps", 5, "items"), "steps.5.items.jsonpath"),
+        (("map", "title"), "map.title.jsonpath"),
+    ],
+)
+def test_bad_jsonpath_is_rejected_on_save(uw_ems, path, loc):
+    target = uw_ems
+    for key in path:
+        target = target[key]
+    target["jsonpath"] = "$$[[bad"
+    rows = errors_for(uw_ems)
+    assert [row["loc"] for row in rows] == [loc]
+    assert rows[0]["msg"].startswith("Value error, invalid JSONPath")
+
+
 def test_uid_must_name_mapped_fields(uw_ems):
     uw_ems["uid"] = ["title", "description"]
     assert locs(uw_ems) == ["uid.1"]

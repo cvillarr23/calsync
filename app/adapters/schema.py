@@ -10,6 +10,8 @@ from collections.abc import Iterator, Mapping
 from typing import Annotated, Any, Literal
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
+from jsonpath_ng.exceptions import JSONPathError
+from jsonpath_ng.ext import parse as parse_jsonpath
 from pydantic import (
     AfterValidator,
     BaseModel,
@@ -54,6 +56,15 @@ def _capturing_regex(pattern: str) -> str:
     return pattern
 
 
+def _valid_jsonpath(path: str) -> str:
+    """Parse at save time, so a typo fails in the editor rather than on the next sync."""
+    try:
+        parse_jsonpath(path)
+    except (JSONPathError, ValueError) as err:
+        raise ValueError(f"invalid JSONPath: {err}") from None
+    return path
+
+
 def _valid_tz(name: str) -> str:
     try:
         ZoneInfo(name)
@@ -79,6 +90,7 @@ TemplateStr = Annotated[str, AfterValidator(_valid_template)]
 Regex = Annotated[str, AfterValidator(_valid_regex)]
 CaptureRegex = Annotated[str, AfterValidator(_capturing_regex)]
 TzName = Annotated[str, AfterValidator(_valid_tz)]
+JsonPath = Annotated[str, AfterValidator(_valid_jsonpath)]
 Selector = Annotated[str, StringConstraints(min_length=1), AfterValidator(_valid_selector)]
 JsonScalar = str | int | float | bool
 
@@ -112,7 +124,7 @@ class Param(_Model):
 class FieldSpec(_Model):
     """How to read one event field from an item."""
 
-    jsonpath: str | None = None
+    jsonpath: JsonPath | None = None
     selector: Selector | None = None
     from_context: Selector | None = Field(
         None, description="Selector matched against the nearest ancestor or preceding element."
@@ -124,7 +136,10 @@ class FieldSpec(_Model):
     format: str | None = None
     time_range_regex: Regex | None = None
     default_duration_min: Annotated[int, Field(ge=1)] | None = None
-    equals: JsonScalar | None = Field(None, description="For skip_if: skip items equal to this.")
+    equals: JsonScalar | None = Field(
+        None,
+        description="For skip_if: skip items equal to this; omitted, skip truthy values.",
+    )
 
     @model_validator(mode="after")
     def _one_source(self) -> "FieldSpec":
@@ -172,7 +187,7 @@ class HttpSpec(_Model):
 
 class ExtractSpec(_Model):
     regex: CaptureRegex | None = None
-    jsonpath: str | None = None
+    jsonpath: JsonPath | None = None
     css: Selector | None = None
     as_: Identifier | None = Field(
         None, alias="as", description="Variable to save into; omitted, it replaces the document."
@@ -192,7 +207,7 @@ class PaginateSpec(_Model):
 
 
 class ItemsSpec(_Model):
-    jsonpath: str | None = None
+    jsonpath: JsonPath | None = None
     css: Selector | None = None
 
     @model_validator(mode="after")
@@ -359,6 +374,7 @@ def _problems(definition: _Definition, *, builtin: bool) -> Iterator[Problem]:
         yield ("kind",), "the python kind is only available to built-in adapters", "python"
     yield from _uid_problems(definition)
     if isinstance(definition, PipelineDefinition):
+        yield from _step_order_problems(definition.steps)
         yield from _pipeline_template_problems(definition)
     if isinstance(definition, HtmlDefinition):
         yield from _html_problems(definition)
@@ -369,6 +385,23 @@ def _uid_problems(definition: _Definition) -> Iterator[Problem]:
     for index, name in enumerate(definition.uid or []):
         if field_map is None or getattr(field_map, name) is None:
             yield ("uid", index), f"uid field {name!r} is not in map", name
+
+
+def _step_order_problems(steps: list[Step]) -> Iterator[Problem]:
+    """`items` ends the pipeline; `paginate` needs an http step after it to repeat."""
+    kinds = [step.kind for step in steps]
+    if "items" in kinds and kinds.index("items") != len(kinds) - 1:
+        yield ("steps", kinds.index("items")), "items must be the last step", "items"
+    if "paginate" in kinds and not _http_after(kinds, kinds.index("paginate")):
+        yield (
+            ("steps", kinds.index("paginate")),
+            "paginate repeats the steps after it, so an http step must follow it",
+            "paginate",
+        )
+
+
+def _http_after(kinds: list[str], index: int) -> bool:
+    return "http" in kinds[index + 1 :]
 
 
 def _pipeline_template_problems(definition: PipelineDefinition) -> Iterator[Problem]:

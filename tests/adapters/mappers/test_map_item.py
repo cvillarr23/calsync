@@ -93,3 +93,10 @@ def test_optional_field_that_matches_nothing_is_none():
         {"t": "x", "s": "2027-01-05T10:00:00Z"},
     )
     assert event.location is None and event.end_utc is None
+
+
+def test_skip_if_without_equals_skips_truthy_values():
+    fields = {"title": {"selector": "t"}, "start": {"selector": "s"}, "skip_if": {"selector": "k"}}
+    record = {"t": "x", "s": "2027-01-05T10:00:00Z"}
+    assert mapped(fields, {**record, "k": "Cancelled"}) is None
+    assert mapped(fields, record) is not None

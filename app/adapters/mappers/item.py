@@ -87,9 +87,11 @@ def _source(spec: FieldSpec) -> str:
 
 
 def _skipped(spec: FieldSpec | None, value: Any) -> bool:
-    """HTML gives text, so `equals: -12` also matches the text `-12`."""
+    """Without `equals`, a truthy value skips. HTML gives text, so `equals: -12` matches `-12`."""
     if spec is None or value is None:
         return False
+    if spec.equals is None:
+        return bool(value)
     return value == spec.equals or str(value) == str(spec.equals)
 
 
