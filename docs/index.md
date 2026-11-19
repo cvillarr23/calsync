@@ -17,3 +17,5 @@ Many community calendars have no `.ics` export: room-booking systems, rec-center
 - [Configuration](configuration.md): every environment variable.
 - [Google OAuth](google-oauth.md): create the OAuth client calsync signs in with.
 - [Adapters](adapters/index.md): describe a new site.
+- [Calendar feeds](feeds.md): subscribe to a source in Google, Apple or Outlook.
+- [JSON API](api.md): manage sources and adapters from scripts.

@@ -25,3 +25,27 @@ def required_env(clean_env):
     for name, value in REQUIRED_ENV.items():
         clean_env.setenv(name, value)
     return clean_env
+
+
+@pytest.fixture
+def app_env(required_env, tmp_path):
+    """Required variables plus a throwaway data directory for the database."""
+    required_env.setenv("CALSYNC_DATA_DIR", str(tmp_path / "data"))
+    return required_env
+
+
+@pytest.fixture
+def client(app_env):
+    """A test client with the app's lifespan running, so the database is open."""
+    from fastapi.testclient import TestClient
+
+    from app.main import create_app
+    from app.settings import load_settings
+
+    with TestClient(create_app(load_settings())) as test_client:
+        yield test_client
+
+
+@pytest.fixture
+def anyio_backend():
+    return "asyncio"

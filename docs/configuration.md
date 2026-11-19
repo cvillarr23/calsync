@@ -23,7 +23,7 @@ python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().d
 
 | Variable | Default | Description |
 |---|---|---|
-| `CALSYNC_DATA_DIR` | `/data` | The directory for the SQLite database. Mount a persistent volume here. |
+| `CALSYNC_DATA_DIR` | `/data` | The directory for the SQLite database, `calsync.db`. It holds your sources, user adapter definitions and stored events. Mount a persistent volume here and back it up. |
 | `CALSYNC_ALLOWED_EMAILS` | *(empty)* | A comma-separated list of Google accounts allowed to sign in. Matching is case-insensitive. |
 | `CALSYNC_MIN_INTERVAL_MIN` | `30` | The shortest sync interval, in minutes, that a source may use. |
 | `CALSYNC_FETCH_TIMEOUT_S` | `15` | The time limit, in seconds, for each adapter run. |
