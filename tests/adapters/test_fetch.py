@@ -47,6 +47,17 @@ class Handler(BaseHTTPRequestHandler):
     def route_redirect(self, query):
         self.reply(302, b"", {"Location": query["to"]})
 
+    def route_fat_redirect(self, query):
+        self.reply(302, b"x" * int(query["n"]), {"Location": query["to"]})
+
+    def route_cookie_then_count(self, query):
+        Handler.hits += 1
+        self.reply(200, f"hit {Handler.hits}".encode(), {"Set-Cookie": "sid=xyz; Path=/"})
+
+    def route_missing(self, query):
+        Handler.hits += 1
+        self.reply(404, f"miss {Handler.hits}".encode())
+
     def route_slow(self, query):
         time.sleep(float(query["s"]))
         self.reply(200, b"late")
@@ -125,6 +136,8 @@ def session(limits=None, **kwargs):
         "http://[::1]/",
         "http://[::ffff:127.0.0.1]/",
         "http://0.0.0.0/",
+        "http://[::7f00:1]/",
+        "http://[64:ff9b::a00:1]/",
         "http://rebind.example/",
     ],
 )
@@ -272,6 +285,37 @@ def test_cache_evicts_oldest():
     cache = PageCache(max_entries=2)
     page = object()
     for n in range(3):
-        cache.put(("GET", f"u{n}", b""), page)
-    assert cache.get(("GET", "u0", b"")) is None
-    assert cache.get(("GET", "u2", b"")) is page
+        cache.put(("GET", f"u{n}", (), b""), page)
+    assert cache.get(("GET", "u0", (), b"")) is None
+    assert cache.get(("GET", "u2", (), b"")).page is page
+
+
+async def test_redirect_bodies_count_against_byte_budget(server):
+    async with session(FetchLimits(max_bytes=1000)) as s:
+        with pytest.raises(ResponseTooLarge):
+            await s.fetch(f"{server}/fat-redirect?n=5000&to=/big?n=1")
+
+
+async def test_cache_hit_restores_cookies(server):
+    cache = PageCache()
+    async with session(cache=cache) as s:
+        await s.fetch(f"{server}/cookie-then-count")
+    async with session(cache=cache) as s:
+        await s.fetch(f"{server}/cookie-then-count")
+        echoed = json.loads((await s.fetch(f"{server}/echo")).text)
+    assert echoed["cookie"] == "sid=xyz"
+
+
+async def test_cache_key_includes_headers(server):
+    cache = PageCache()
+    async with session(cache=cache) as s:
+        a = (await s.fetch(f"{server}/count", headers={"X-Token": "a"})).text
+        b = (await s.fetch(f"{server}/count", headers={"X-Token": "b"})).text
+    assert a != b
+
+
+async def test_non_2xx_pages_are_not_cached(server):
+    cache = PageCache()
+    async with session(cache=cache) as s:
+        first = (await s.fetch(f"{server}/missing")).text
+        assert (await s.fetch(f"{server}/missing")).text != first
