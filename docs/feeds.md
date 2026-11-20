@@ -33,7 +33,7 @@ Each app checks the feed on its own schedule, which calsync can't control. New e
 2. Next to **Other calendars**, click **+** and then **From URL**.
 3. Paste the feed URL and click **Add calendar**.
 
-Google refreshes subscribed calendars every few hours, and sometimes less often. If you need changes to show up quickly, give the source a target calendar (`target_calendar_id` in the [JSON API](api.md)) instead, so calsync writes events to Google directly.
+Google refreshes subscribed calendars every few hours, and sometimes less often. If you need changes to show up quickly, pick a **Google Calendar** on the source form instead, so calsync writes events to Google directly on each sync. See [Google Calendar sync](google-calendar.md).
 
 ### Apple Calendar
 

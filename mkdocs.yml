@@ -37,6 +37,7 @@ nav:
   - Configuration: configuration.md
   - Google OAuth: google-oauth.md
   - Reverse proxy: reverse-proxy.md
+  - Google Calendar sync: google-calendar.md
   - Calendar feeds: feeds.md
   - JSON API: api.md
   - Adapters:

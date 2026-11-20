@@ -54,7 +54,7 @@ A source has these fields:
 | `exclude_kw` | `[]` | Drop events whose title contains any of these. Excludes win over includes. |
 | `interval_min` | `360` | Minutes between syncs. Must be at least `CALSYNC_MIN_INTERVAL_MIN`. |
 | `lookahead_days` | `60` | How far ahead to fetch, from 1 to 366 days. |
-| `target_calendar_id` | `null` | The Google Calendar to sync to. `null` means the source is served as an `.ics` feed only. |
+| `target_calendar_id` | `null` | The Google Calendar to sync to, an `id` from `GET /api/calendars`. `null` means the source is served as an `.ics` feed only. Changing or clearing it removes the source's future events from the old calendar on the next sync; see [Google Calendar sync](google-calendar.md). |
 | `enabled` | `true` | Whether the source syncs on its schedule. A disabled source can still be synced with Sync now. |
 
 Keyword matching ignores case and treats any run of whitespace as one space. Responses also include these read-only fields:
@@ -100,3 +100,9 @@ curl -X POST https://calsync.example/api/sources/1/sync
 ```
 
 The counts are zero when the run failed before storing anything; `error` then says why.
+
+## Calendars
+
+| Route | What it does |
+|---|---|
+| `GET /api/calendars` | The Google Calendars you can add events to, as `[{"id", "summary", "primary"}]`, primary first. Returns `409` when Google needs reconnecting, and `502` when Google can't be reached. |
