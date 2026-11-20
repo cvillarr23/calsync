@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter, Depends
 
-from app.api import adapters, feeds, schema, sources
+from app.api import adapters, calendars, feeds, schema, sources
 from app.api.csrf import require_csrf
 from app.api.deps import current_user
 
@@ -11,4 +11,5 @@ router.include_router(schema.router)
 _SIGNED_IN = [Depends(current_user), Depends(require_csrf)]
 router.include_router(adapters.router, prefix="/api", dependencies=_SIGNED_IN)
 router.include_router(sources.router, prefix="/api", dependencies=_SIGNED_IN)
+router.include_router(calendars.router, prefix="/api", dependencies=_SIGNED_IN)
 router.include_router(feeds.router)

@@ -8,6 +8,7 @@ from app.adapters.registry import AdapterRegistry
 from app.db.models import User
 from app.db.session import Db
 from app.services.auth import GoogleOAuth
+from app.services.google_calendar import GoogleConnection
 from app.services.scheduling import SyncScheduler
 from app.settings import Settings
 
@@ -43,8 +44,13 @@ def _google(request: Request) -> GoogleOAuth:
     return request.app.state.google
 
 
+def _google_calendar(request: Request) -> GoogleConnection:
+    return request.app.state.google_calendar
+
+
 CurrentUser = Annotated[User, Depends(current_user, scope="function")]
 Registry = Annotated[AdapterRegistry, Depends(_registry)]
 AppSettings = Annotated[Settings, Depends(_settings)]
 AppScheduler = Annotated[SyncScheduler, Depends(_scheduler)]
 Google = Annotated[GoogleOAuth, Depends(_google)]
+GoogleCalendar = Annotated[GoogleConnection, Depends(_google_calendar)]

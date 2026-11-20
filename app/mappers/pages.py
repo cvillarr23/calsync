@@ -16,6 +16,7 @@ def source_row(
     definition: AdapterDefinition | None,
     matched: int,
     next_run_at: datetime | None,
+    google_connected: bool,
 ) -> SourceRow:
     return SourceRow(
         id=source.id,
@@ -29,6 +30,7 @@ def source_row(
         next_run_at=next_run_at,
         matched=matched,
         feed_url=feed_url(settings, source.feed_token),
+        reconnect=source.target_calendar_id is not None and not google_connected,
     )
 
 

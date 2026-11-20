@@ -66,6 +66,16 @@ _BLOCKED = Hint(
     "only if the calendar really is on your own network.",
     "configuration/",
 )
+_RECONNECT = Hint(
+    "Google stopped accepting calsync's access, for example after you removed it from your "
+    "Google account. Use Reconnect Google to sign in again; the next sync picks up from there.",
+    "google-calendar/#reconnecting-google",
+)
+_CALENDAR = Hint(
+    "Google Calendar refused the change. Check that the target calendar still exists and that "
+    "you can add events to it, or pick another one on the source form.",
+    "google-calendar/",
+)
 
 _DEFINITION_HINTS: list[tuple[re.Pattern[str], Hint]] = [
     (
@@ -85,6 +95,8 @@ _RUN_HINTS: list[tuple[re.Pattern[str], Hint]] = [
     (re.compile(r"no event could be read"), _NOTHING_READ),
     (re.compile(r"^step \d+ \("), _STEP_FAILED),
     (re.compile(r"non-public address|unix sockets"), _BLOCKED),
+    (re.compile(r"reconnect Google"), _RECONNECT),
+    (re.compile(r"Google Calendar answered|target calendar"), _CALENDAR),
 ]
 
 
