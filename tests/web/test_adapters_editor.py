@@ -33,6 +33,7 @@ def test_validate_explains_jsonpath_and_css_errors(client):
 
     response = client.post("/adapters/validate", data={"yaml": html_yaml(item="li[")}).text
     assert "item" in response and "invalid CSS selector" in response
+    assert "Value error" not in response
     assert "Use a CSS selector" in response
 
 

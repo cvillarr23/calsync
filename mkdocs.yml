@@ -33,6 +33,7 @@ markdown_extensions:
 nav:
   - Home: index.md
   - Quickstart: quickstart.md
+  - Using the web UI: usage.md
   - Configuration: configuration.md
   - Google OAuth: google-oauth.md
   - Reverse proxy: reverse-proxy.md

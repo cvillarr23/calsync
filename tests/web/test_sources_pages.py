@@ -85,6 +85,11 @@ def test_preview_updates_as_keywords_change(client, adapter, runner):
     assert len(runner.calls) == 1  # keyword changes reuse the cached run
 
 
+def test_preview_runs_before_the_name_is_filled_in(client, adapter, runner):
+    preview = client.post("/sources/preview", data=source_form(name="")).text
+    assert "Matched (1)" in preview
+
+
 def test_preview_asks_for_missing_params(client, adapter, runner):
     preview = client.post("/sources/preview", data=source_form(**{"param.url": ""})).text
     assert "params.url" in preview and "required" in preview

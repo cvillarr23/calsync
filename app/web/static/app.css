@@ -62,3 +62,5 @@ code, .feed { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-
   background: var(--code-bg); padding: .1rem .3rem; border-radius: 4px; overflow-wrap: anywhere; }
 .htmx-indicator { opacity: 0; transition: opacity .2s; }
 .htmx-request .htmx-indicator, .htmx-request.htmx-indicator { opacity: 1; }
+td code { white-space: nowrap; }
+textarea.code { white-space: pre; overflow-wrap: normal; overflow-x: auto; }

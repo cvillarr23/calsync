@@ -31,7 +31,7 @@ def problem_rows(text: str, problems: list[Problem]) -> list[ProblemRow]:
     return [
         ProblemRow(
             loc=row["loc"] or "(root)",
-            msg=row["msg"],
+            msg=row["msg"].removeprefix("Value error, "),
             line=line_for(text, row["loc"]),
             hint=definition_hint(row["msg"]),
         )

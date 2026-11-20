@@ -9,8 +9,8 @@ calsync reads its configuration from environment variables only. If a required v
 | `CALSYNC_BASE_URL` | The public base URL where calsync is reachable, for example `https://calsync.example`. It is used to build the OAuth redirect (`<base>/auth/callback`) and the feed URLs. |
 | `GOOGLE_CLIENT_ID` | The OAuth web client ID. See [Google OAuth](google-oauth.md). |
 | `GOOGLE_CLIENT_SECRET` | The OAuth web client secret. |
-| `CALSYNC_SESSION_SECRET` | A random string that signs session cookies. Use at least 32 random bytes. |
-| `CALSYNC_TOKEN_ENC_KEY` | A Fernet key (32 bytes, url-safe base64) that encrypts stored Google refresh tokens. calsync refuses to start if the value isn't a valid key. |
+| `CALSYNC_SESSION_SECRET` | A random string that signs the session cookie. Use at least 32 random bytes. Changing it signs everyone out. |
+| `CALSYNC_TOKEN_ENC_KEY` | A Fernet key (32 bytes, url-safe base64) that encrypts stored Google refresh tokens. calsync refuses to start if the value isn't a valid Fernet key. Changing it makes stored tokens unreadable, so everyone has to sign in again. |
 
 You can generate the two secrets with:
 
@@ -24,7 +24,7 @@ python -c "import base64, os; print(base64.urlsafe_b64encode(os.urandom(32)).dec
 | Variable | Default | Description |
 |---|---|---|
 | `CALSYNC_DATA_DIR` | `/data` | The directory for the SQLite database, `calsync.db`. It holds your sources, user adapter definitions and stored events. Mount a persistent volume here and back it up. |
-| `CALSYNC_ALLOWED_EMAILS` | *(empty)* | A comma-separated list of Google accounts allowed to sign in. Matching is case-insensitive. |
+| `CALSYNC_ALLOWED_EMAILS` | *(empty)* | A comma-separated list of Google accounts allowed to sign in. Matching is case-insensitive. Other accounts are turned away after Google's sign-in, and accounts whose email Google hasn't verified are always turned away. |
 | `CALSYNC_MIN_INTERVAL_MIN` | `30` | The shortest sync interval, in minutes, that a source may use. If you raise it, existing sources with a shorter interval are scheduled at the new minimum. |
 | `CALSYNC_FETCH_TIMEOUT_S` | `15` | The time limit, in seconds, for each adapter run. |
 | `CALSYNC_FETCH_MAX_PAGES` | `20` | The most pages or requests one adapter run may make. In [headless mode](adapters/html.md#headless-trade-offs), every script and XHR the page loads counts too. |
@@ -51,3 +51,7 @@ The image `ghcr.io/cvillarr23/calsync` is built for `linux/amd64` and `linux/arm
 - The image's `HEALTHCHECK` polls `GET /healthz`.
 - On shutdown, calsync lets syncs that are running finish, for up to `CALSYNC_FETCH_TIMEOUT_S` seconds, and then stops them. A stopped sync saves nothing, and runs again on the next start. `docker stop` waits only 10 seconds before killing the container, so give it longer: `docker stop -t 30`, `--stop-timeout 30` on `docker run`, or `stop_grace_period: 30s` in Compose.
 - Pin a version tag or `sha-` tag in production, and upgrade deliberately.
+
+## Session cookie
+
+Signing in sets a cookie named `calsync_session`, signed with `CALSYNC_SESSION_SECRET`, that lasts 30 days. It is `HttpOnly` and `SameSite=Lax`, and `Secure` whenever `CALSYNC_BASE_URL` starts with `https://`. On a plain-`http` base URL other than `localhost`, browsers won't keep it secure, so serve calsync over HTTPS; see [Reverse proxy](reverse-proxy.md).

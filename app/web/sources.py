@@ -91,7 +91,7 @@ async def preview(
 ) -> HTMLResponse:
     data = await _posted(request, user, registry)
     try:
-        source = _unsaved_source(user, SourcePatch.model_validate(data))
+        source = _unsaved_source(user, SourcePatch.model_validate(_previewable(data)))
     except ValidationError as err:
         return render(request, "sources/_preview.html", {"problems": error_list(err)})
     problems = _preview_blockers(source, registry, settings)
@@ -166,6 +166,11 @@ def _row(db: Session, registry: AdapterRegistry, settings: Settings, source: Sou
     definition = registry.get(source.adapter_id, source.user_id)
     matched = len(matched_events(db, source, utcnow()))
     return source_row(settings, source, definition, matched)
+
+
+def _previewable(data: dict[str, Any]) -> dict[str, Any]:
+    """People fill in the name last; a blank one shouldn't hold back the preview."""
+    return {**data, "name": data["name"] or None}
 
 
 def _unsaved_source(user: User, body: SourcePatch) -> Source:
