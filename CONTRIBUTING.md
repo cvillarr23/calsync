@@ -41,6 +41,8 @@ app/
   schemas/             API request and response bodies (Pydantic), one file per resource
   services/            application logic with no HTTP in it
     sync/              one sync run, one step per module (scrape, event_store, status, ...)
+    scheduling/        when sources sync: backoff.py (delays), runs.py (one run per
+                       source at a time), scheduler.py (APScheduler jobs, Sync now)
   mappers/             ORM rows and definitions → API schemas, and back
   api/
     deps.py            shared route dependencies (current user, registry, settings)

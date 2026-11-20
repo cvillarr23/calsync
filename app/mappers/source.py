@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Any
 
 from app.db.models import Source
@@ -21,7 +22,7 @@ def source_columns(body: SourcePatch, fields: set[str]) -> dict[str, Any]:
     }
 
 
-def source_out(settings: Settings, source: Source) -> SourceOut:
+def source_out(settings: Settings, source: Source, next_run_at: datetime | None) -> SourceOut:
     return SourceOut(
         id=source.id,
         name=source.name,
@@ -37,4 +38,6 @@ def source_out(settings: Settings, source: Source) -> SourceOut:
         last_run_at=source.last_run_at,
         last_status=source.last_status,
         last_error=source.last_error,
+        consecutive_failures=source.consecutive_failures,
+        next_run_at=next_run_at,
     )

@@ -6,7 +6,7 @@ Many community calendars have no `.ics` export: room-booking systems, rec-center
 - **Adapters.** Declarative YAML or JSON definitions describe how to fetch a site and extract its events. New sites are added in the UI, without writing code.
 - **Filters.** Include and exclude keywords keep only the events you care about.
 - **Outputs.** calsync syncs matching events to a Google Calendar you choose, publishes them as an `.ics` feed, or both.
-- **Schedule.** Each source re-syncs on its own interval.
+- **Schedule.** Each source re-syncs on its own interval, backs off while its site is failing, and can be synced on demand with Sync now.
 
 !!! note "Early development"
     calsync is under active development. Some pages describe features that haven't landed yet.

@@ -44,3 +44,5 @@ class SourceOut(BaseModel):
     last_run_at: datetime | None
     last_status: str | None
     last_error: str | None
+    consecutive_failures: int
+    next_run_at: datetime | None

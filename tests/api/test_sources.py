@@ -1,6 +1,11 @@
+from datetime import datetime, timedelta
+
 import pytest
 
+from app.adapters.events import AdapterRunError, ScrapedEvent
+from app.db.base import utcnow
 from tests.adapters.conftest import HTML_DEF
+from tests.support import FakeRunner
 
 
 @pytest.fixture
@@ -87,3 +92,80 @@ def test_rejected_patch_changes_nothing(client, adapter):
     response = client.patch(f"/api/sources/{source['id']}", json={"name": "X", "interval_min": 1})
     assert response.status_code == 422
     assert client.get(f"/api/sources/{source['id']}").json() == source
+
+
+def test_sync_now_runs_the_source_and_reschedules_it(client, adapter):
+    skate = ScrapedEvent("skate-1", "Public Skate", utcnow() + timedelta(days=1))
+    client.app.state.scheduler.runs.runner = FakeRunner([skate])
+    source_id = client.post("/api/sources", json=new_source()).json()["id"]
+
+    response = client.post(f"/api/sources/{source_id}/sync")
+    assert response.status_code == 200, response.text
+    assert response.json() == {
+        "status": "ok",
+        "error": None,
+        "fetched": 1,
+        "inserted": 1,
+        "updated": 0,
+        "unchanged": 0,
+        "removed": 0,
+        "matched": 1,
+    }
+    source = client.get(f"/api/sources/{source_id}").json()
+    assert (source["last_status"], source["consecutive_failures"]) == ("ok", 0)
+    last_run = datetime.fromisoformat(source["last_run_at"])
+    assert datetime.fromisoformat(source["next_run_at"]) == last_run + timedelta(minutes=360)
+
+
+def test_sync_now_reports_failures(client, adapter):
+    client.app.state.scheduler.runs.runner = FakeRunner(error=AdapterRunError("site down"))
+    source_id = client.post("/api/sources", json=new_source()).json()["id"]
+
+    assert client.post(f"/api/sources/{source_id}/sync").json()["error"] == "site down"
+    source = client.get(f"/api/sources/{source_id}").json()
+    assert (source["last_status"], source["consecutive_failures"]) == ("error", 1)
+
+
+def test_sync_now_of_a_missing_source_is_404(client):
+    assert client.post("/api/sources/99/sync").status_code == 404
+
+
+def test_sync_now_while_syncing_is_409(client, adapter):
+    source_id = client.post("/api/sources", json=new_source()).json()["id"]
+    lock = client.app.state.scheduler.runs.lock(source_id)
+    client.portal.call(lock.acquire)
+    try:
+        response = client.post(f"/api/sources/{source_id}/sync")
+    finally:
+        client.portal.call(lock.release)
+    assert response.status_code == 409
+    assert "already running" in response.json()["detail"]
+
+
+def test_patching_the_interval_moves_the_next_run(client, adapter):
+    scheduler = client.app.state.scheduler
+    scheduler.runs.runner = FakeRunner()
+    source_id = client.post("/api/sources", json=new_source()).json()["id"]
+    client.post(f"/api/sources/{source_id}/sync")
+    last_run = datetime.fromisoformat(client.get(f"/api/sources/{source_id}").json()["last_run_at"])
+
+    patched = client.patch(f"/api/sources/{source_id}", json={"interval_min": 60}).json()
+    assert datetime.fromisoformat(patched["next_run_at"]) == last_run + timedelta(minutes=60)
+    assert scheduler.next_run_at(source_id) == last_run + timedelta(minutes=60)
+
+
+def test_disabled_sources_have_no_next_run(client, adapter):
+    scheduler = client.app.state.scheduler
+    source_id = client.post("/api/sources", json=new_source()).json()["id"]
+    assert scheduler.next_run_at(source_id) is not None
+
+    patched = client.patch(f"/api/sources/{source_id}", json={"enabled": False}).json()
+    assert patched["next_run_at"] is None
+    assert scheduler.next_run_at(source_id) is None
+
+
+def test_deleting_a_source_drops_its_job(client, adapter):
+    scheduler = client.app.state.scheduler
+    source_id = client.post("/api/sources", json=new_source()).json()["id"]
+    client.delete(f"/api/sources/{source_id}")
+    assert scheduler.next_run_at(source_id) is None

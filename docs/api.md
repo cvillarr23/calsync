@@ -36,6 +36,7 @@ Send a definition either as a JSON object or as YAML with `Content-Type: applica
 | `GET /api/sources/{id}` | One source. |
 | `PATCH /api/sources/{id}` | Changes the fields you send. |
 | `DELETE /api/sources/{id}` | Deletes the source and its stored events. Returns `204`. |
+| `POST /api/sources/{id}/sync` | Sync now: runs the source straight away and returns what the run did. Returns `409` while the source is already syncing. |
 
 A source has these fields:
 
@@ -49,9 +50,26 @@ A source has these fields:
 | `interval_min` | `360` | Minutes between syncs. Must be at least `CALSYNC_MIN_INTERVAL_MIN`. |
 | `lookahead_days` | `60` | How far ahead to fetch, from 1 to 366 days. |
 | `target_calendar_id` | `null` | The Google Calendar to sync to. `null` means the source is served as an `.ics` feed only. |
-| `enabled` | `true` | Whether the source syncs on its schedule. |
+| `enabled` | `true` | Whether the source syncs on its schedule. A disabled source can still be synced with Sync now. |
 
-Keyword matching ignores case and treats any run of whitespace as one space. Responses also include the read-only fields `id`, `feed_url` (see [Calendar feeds](feeds.md)), `last_run_at`, `last_status` (`ok` or `error`) and `last_error`.
+Keyword matching ignores case and treats any run of whitespace as one space. Responses also include these read-only fields:
+
+| Field | Description |
+|---|---|
+| `id` | The source's id. |
+| `feed_url` | The source's `.ics` feed. See [Calendar feeds](feeds.md). |
+| `last_run_at`, `last_status`, `last_error` | When the last sync ran, whether it was `ok` or an `error`, and the error message. |
+| `consecutive_failures` | How many syncs in a row have failed. A success resets it to `0`. |
+| `next_run_at` | When the next scheduled sync is due. `null` for a disabled source. |
+
+### Scheduling
+
+calsync syncs each enabled source on its own, in the background:
+
+- A new source syncs right away. After that, each sync is due `interval_min` minutes after the previous one, whether that one was scheduled or a Sync now.
+- After a failed sync, the wait doubles with each failure in a row: twice the interval, then four times, and so on, up to 24 hours. An interval longer than 24 hours is never shortened. The next success resets the wait to the interval.
+- The schedule is worked out from `last_run_at` and `consecutive_failures`, so it carries over a restart. A sync that fell due while calsync was down runs at startup.
+- A source never syncs twice at once. A scheduled sync that finds the source busy is skipped, and Sync now returns `409`.
 
 Example:
 
@@ -62,3 +80,16 @@ curl -X POST https://calsync.example/api/sources \
        "params": {"page_url": "https://rink.example/schedule"},
        "include_kw": ["public skate"], "exclude_kw": ["theme night"]}'
 ```
+
+Sync it now:
+
+```sh
+curl -X POST https://calsync.example/api/sources/1/sync
+```
+
+```json
+{"status": "ok", "error": null, "fetched": 42, "inserted": 3, "updated": 1,
+ "unchanged": 38, "removed": 0, "matched": 12}
+```
+
+The counts are zero when the run failed before storing anything; `error` then says why.

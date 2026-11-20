@@ -18,6 +18,7 @@ dependencies = [
     "dateparser>=1.5.1",
     "playwright==1.65.2",
     "jsonpath-ng>=1.16.0",
+    "apscheduler>=3.11,<4",
 ]
 
 [dependency-groups]
