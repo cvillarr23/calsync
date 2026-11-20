@@ -22,6 +22,7 @@ def source_form_data(form: Mapping[str, Any], definition: AdapterDefinition | No
         "exclude_kw": _lines(form.get("exclude_kw")),
         "interval_min": _blank_to_none(form.get("interval_min")),
         "lookahead_days": _blank_to_none(form.get("lookahead_days")),
+        "target_calendar_id": _blank_to_none(form.get("target_calendar_id")),
         "enabled": form.get("enabled") == "on",
     }
 
@@ -42,6 +43,7 @@ def source_form_values(source: Source) -> dict[str, Any]:
         "exclude_kw": "\n".join(source.exclude_kw),
         "interval_min": source.interval_min,
         "lookahead_days": source.lookahead_days,
+        "target_calendar_id": source.target_calendar_id,
         "enabled": source.enabled,
     }
 
@@ -55,6 +57,7 @@ def blank_form_values() -> dict[str, Any]:
         "exclude_kw": "",
         "interval_min": DEFAULT_INTERVAL_MIN,
         "lookahead_days": DEFAULT_LOOKAHEAD_DAYS,
+        "target_calendar_id": None,
         "enabled": True,
     }
 

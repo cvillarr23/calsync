@@ -19,6 +19,8 @@ class SourceRow:
     next_run_at: datetime | None
     matched: int
     feed_url: str
+    reconnect: bool = False
+    """The source pushes to Google, but calsync has no usable grant for its owner."""
 
 
 @dataclass(frozen=True)

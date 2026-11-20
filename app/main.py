@@ -17,8 +17,10 @@ from app.api import router
 from app.db.engine import init_db, make_engine
 from app.services.auth import GoogleOAuth
 from app.services.definition_store import DefinitionStore
+from app.services.google_calendar import GoogleConnection
 from app.services.preview import ScrapeCache
 from app.services.scheduling import SourceRuns, SyncScheduler
+from app.services.sync.google_targets import google_targets
 from app.settings import Settings, load_settings
 from app.web import mount_web
 from app.web.errors import add_error_handlers
@@ -39,7 +41,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
 def _start_scheduler(app: FastAPI) -> SyncScheduler:
     """Schedule every enabled source. With `run_scheduler` off, jobs are kept but never fire."""
-    runs = SourceRuns(app.state.sessions, app.state.adapters, app.state.runner)
+    targets = google_targets(app.state.google_calendar)
+    runs = SourceRuns(app.state.sessions, app.state.adapters, app.state.runner, targets)
     scheduler = SyncScheduler(runs, app.state.sessions, app.state.settings)
     scheduler.start(paused=not app.state.run_scheduler)
     scheduler.schedule_all()
@@ -56,6 +59,7 @@ def _register_engines(settings: Settings) -> None:
 def _set_services(app: FastAPI, settings: Settings) -> None:
     """Collaborators routes reach through `app.state`, so tests can swap in fakes."""
     app.state.google = GoogleOAuth(settings)
+    app.state.google_calendar = GoogleConnection(settings)
     app.state.runner = default_runner
     app.state.scrape_cache = ScrapeCache()
     app.state.page_cache = PageCache()

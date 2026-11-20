@@ -4,11 +4,12 @@ from datetime import datetime
 from app.adapters.events import AdapterRunError
 from app.adapters.fetch import FetchError
 from app.db.models import Source
+from app.services.google_calendar import CalendarApiError, GoogleReconnectNeeded
 from app.services.sync.result import SyncResult
 
 log = logging.getLogger(__name__)
 
-_EXPECTED_ERRORS = (AdapterRunError, FetchError)
+_EXPECTED_ERRORS = (AdapterRunError, FetchError, CalendarApiError, GoogleReconnectNeeded)
 """Failures the user can act on; anything else is also logged with a traceback."""
 
 

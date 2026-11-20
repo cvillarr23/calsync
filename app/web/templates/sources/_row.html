@@ -9,6 +9,7 @@
     <div class="field-error">{{ row.error }}</div>
     {% if row.hint %}<div class="hint muted">{{ row.hint.text }} <a href="{{ row.hint.url }}" target="_blank" rel="noopener">More</a></div>{% endif %}
     {% endif %}
+    {% if row.reconnect %}<div><a class="reconnect" href="/auth/login?consent=true">Reconnect Google</a></div>{% endif %}
   </td>
   <td>{% if row.last_run_at %}<time data-local datetime="{{ row.last_run_at.isoformat() }}">{{ row.last_run_at | utc }}</time>{% else %}<span class="muted">never</span>{% endif %}</td>
   <td>

@@ -44,11 +44,18 @@ def google():
 
 
 @pytest.fixture
-def make_client(app_env, google):
+def calendar():
+    from tests.support import FakeCalendar
+
+    return FakeCalendar()
+
+
+@pytest.fixture
+def make_client(app_env, google, calendar):
     """Builds signed-out test clients from the environment as it is when called.
 
-    Each runs the app's lifespan with Google faked. The base URL is https because
-    the session cookie is Secure on https instances.
+    Each runs the app's lifespan with Google sign-in and Google Calendar faked.
+    The base URL is https because the session cookie is Secure on https instances.
     The scheduler is paused: jobs exist, but no real sync starts behind a test's back.
     """
     from contextlib import ExitStack
@@ -57,12 +64,15 @@ def make_client(app_env, google):
 
     from app.main import create_app
     from app.services.auth import GoogleOAuth
+    from app.services.google_calendar import GoogleConnection
     from app.settings import load_settings
+    from tests.support import no_sleep
 
     def build():
         settings = load_settings()
         app = create_app(settings, run_scheduler=False)
         app.state.google = GoogleOAuth(settings, transport=google.transport)
+        app.state.google_calendar = GoogleConnection(settings, calendar.transport, no_sleep)
         return stack.enter_context(TestClient(app, base_url="https://testserver"))
 
     with ExitStack() as stack:

@@ -45,9 +45,21 @@
       </div>
     </div>
 
-    <label for="target">Google Calendar</label>
-    <select id="target" disabled><option>None (.ics feed only)</option></select>
-    <div class="muted small">Syncing to a Google Calendar is coming soon; the feed works now.</div>
+    <label for="target_calendar_id">Google Calendar <span class="muted">· the feed is served either way</span></label>
+    {% set listed = calendars.calendars | map(attribute="id") | list %}
+    <select id="target_calendar_id" name="target_calendar_id">
+      <option value="" {% if not values.target_calendar_id %}selected{% endif %}>None (.ics feed only)</option>
+      {% for calendar in calendars.calendars %}
+      <option value="{{ calendar.id }}" {% if values.target_calendar_id == calendar.id %}selected{% endif %}>{{ calendar.summary }}{% if calendar.primary %} (primary){% endif %}</option>
+      {% endfor %}
+      {% if values.target_calendar_id and values.target_calendar_id not in listed %}
+      <option value="{{ values.target_calendar_id }}" selected>{{ values.target_calendar_id }} (current)</option>
+      {% endif %}
+    </select>
+    {% if calendars.problem %}
+    <div class="field-error">{{ calendars.problem }}{% if calendars.reconnect %} <a href="/auth/login?consent=true">Reconnect Google</a>{% endif %}</div>
+    {% endif %}
+    {% if errors.get("target_calendar_id") %}<div class="field-error">{{ errors["target_calendar_id"] }}</div>{% endif %}
 
     <label><input type="checkbox" name="enabled" {% if values.enabled %}checked{% endif %}> Enabled</label>
 

@@ -9,6 +9,7 @@ from app.adapters.events import AdapterRunner, default_runner
 from app.adapters.registry import AdapterRegistry
 from app.db.models import Source
 from app.services.sync import SyncResult, run_source
+from app.services.sync.google_targets import TargetFactory, no_targets
 
 log = logging.getLogger(__name__)
 
@@ -28,8 +29,10 @@ class SourceRuns:
         sessions: sessionmaker[Session],
         registry: AdapterRegistry,
         runner: AdapterRunner = default_runner,
+        targets: TargetFactory = no_targets,
     ) -> None:
         self.runner = runner
+        self.targets = targets
         self.closing = False
         self._sessions = sessions
         self._registry = registry
@@ -62,13 +65,21 @@ class SourceRuns:
     async def _run_locked(
         self, source_id: int, now: datetime, scheduled: bool
     ) -> SyncResult | None:
-        with self._sessions.begin() as db:
+        """A plain session, not `begin()`: the run commits part-way, before pushing to Google."""
+        with self._sessions() as db:
             source = db.get(Source, source_id)
             if not self._should_run(source, scheduled):
                 return None
-            return await run_source(
-                db, source, registry=self._registry, runner=self.runner, now=now
+            result = await run_source(
+                db,
+                source,
+                registry=self._registry,
+                runner=self.runner,
+                targets=self.targets(db, source),
+                now=now,
             )
+            db.commit()
+            return result
 
     def _should_run(self, source: Source | None, scheduled: bool) -> bool:
         """Deleted sources never run; disabled ones only run when asked to by hand."""

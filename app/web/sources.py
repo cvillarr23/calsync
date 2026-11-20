@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.adapters.registry import AdapterRegistry
 from app.adapters.schema import error_list
-from app.api.deps import AppScheduler, AppSettings, CurrentUser, Registry
+from app.api.deps import AppScheduler, AppSettings, CurrentUser, GoogleCalendar, Registry
 from app.db.base import utcnow
 from app.db.models import Source, User
 from app.db.models.source import DEFAULT_LOOKAHEAD_DAYS
@@ -28,6 +28,8 @@ from app.schemas.source import SourceCreate, SourcePatch
 from app.services import sources
 from app.services.adapter_suggest import suggest_adapters
 from app.services.errors import Invalid, NotFound
+from app.services.google_calendar import GoogleConnection
+from app.services.google_calendar.choices import calendar_choices
 from app.services.preview import preview_source
 from app.services.scheduling import SyncInProgress, SyncScheduler
 from app.services.source_validation import source_problems
@@ -37,8 +39,7 @@ from app.web.rendering import render
 
 router = APIRouter()
 
-FORM_FIELDS = set(SourcePatch.model_fields) - {"target_calendar_id"}
-"""The form doesn't offer calendar targets yet, so saving it leaves the target alone."""
+FORM_FIELDS = set(SourcePatch.model_fields)
 
 
 @router.get("/")
@@ -55,8 +56,11 @@ def source_list(
 
 
 @router.get("/sources/new")
-def new_source(request: Request, user: CurrentUser, registry: Registry) -> HTMLResponse:
-    return _form_page(request, user, registry, None, blank_form_values(), {})
+async def new_source(
+    request: Request, db: Db, user: CurrentUser, registry: Registry, google: GoogleCalendar
+) -> HTMLResponse:
+    page = _FormPage(request, db, user, registry, google)
+    return await page.render(None, blank_form_values(), {})
 
 
 @router.post("/sources/new")
@@ -68,6 +72,7 @@ async def create_source(
     settings: AppSettings,
     scheduler: AppScheduler,
     tasks: BackgroundTasks,
+    google: GoogleCalendar,
 ) -> Response:
     data = await _posted(request, user, registry)
     try:
@@ -76,7 +81,7 @@ async def create_source(
             db, user, source_columns(body, FORM_FIELDS), registry, settings
         )
     except (ValidationError, Invalid) as err:
-        return _rejected(request, user, registry, None, data, err)
+        return await _FormPage(request, db, user, registry, google).rejected(None, data, err)
     _reschedule(scheduler, tasks, source)
     return RedirectResponse(f"/?created={source.id}", status.HTTP_303_SEE_OTHER)
 
@@ -117,11 +122,17 @@ async def preview(
 
 
 @router.get("/sources/{source_id}")
-def edit_source(
-    request: Request, source_id: int, db: Db, user: CurrentUser, registry: Registry
+async def edit_source(
+    request: Request,
+    source_id: int,
+    db: Db,
+    user: CurrentUser,
+    registry: Registry,
+    google: GoogleCalendar,
 ) -> HTMLResponse:
     source = sources.owned_source(db, user, source_id)
-    return _form_page(request, user, registry, source, source_form_values(source), {})
+    page = _FormPage(request, db, user, registry, google)
+    return await page.render(source, source_form_values(source), {})
 
 
 @router.post("/sources/{source_id}")
@@ -134,6 +145,7 @@ async def update_source(
     settings: AppSettings,
     scheduler: AppScheduler,
     tasks: BackgroundTasks,
+    google: GoogleCalendar,
 ) -> Response:
     source = sources.owned_source(db, user, source_id)
     data = await _posted(request, user, registry)
@@ -143,7 +155,7 @@ async def update_source(
             sources.update_source(source, columns, registry, settings)
     except (ValidationError, Invalid) as err:
         db.refresh(source)
-        return _rejected(request, user, registry, source, data, err)
+        return await _FormPage(request, db, user, registry, google).rejected(source, data, err)
     _reschedule(scheduler, tasks, source)
     return RedirectResponse(f"/?saved={source.id}", status.HTTP_303_SEE_OTHER)
 
@@ -195,7 +207,10 @@ def _row(
 ) -> SourceRow:
     definition = registry.get(source.adapter_id, source.user_id)
     matched = len(matched_events(db, source, utcnow()))
-    return source_row(settings, source, definition, matched, scheduler.shown_run_at(source))
+    connected = db.get_one(User, source.user_id).refresh_token_enc is not None
+    return source_row(
+        settings, source, definition, matched, scheduler.shown_run_at(source), connected
+    )
 
 
 def _reschedule(scheduler: SyncScheduler, tasks: BackgroundTasks, source: Source) -> None:
@@ -241,38 +256,47 @@ def _preview_blockers(
     return [p for p in problems if p["loc"] == "adapter_id" or p["loc"].startswith("params.")]
 
 
-def _form_page(
-    request: Request,
-    user: User,
-    registry: AdapterRegistry,
-    source: Source | None,
-    values: dict[str, Any],
-    errors: dict[str, str],
-    status_code: int = 200,
-) -> HTMLResponse:
-    adapters = registry.all(user.id)
-    definition = registry.get(values["adapter_id"], user.id) if values["adapter_id"] else None
-    context = {
-        "user": user,
-        "source": source,
-        "adapters": adapters,
-        "definition": definition,
-        "values": values,
-        "errors": errors,
-        "param_prefix": PARAM_PREFIX,
-    }
-    return render(request, "sources/form.html", context, status_code=status_code)
+class _FormPage:
+    """Renders the source form, with the user's Google calendars in its target dropdown."""
 
+    def __init__(
+        self,
+        request: Request,
+        db: Session,
+        user: User,
+        registry: AdapterRegistry,
+        google: GoogleConnection,
+    ) -> None:
+        self._request = request
+        self._db = db
+        self._user = user
+        self._registry = registry
+        self._google = google
 
-def _rejected(
-    request: Request,
-    user: User,
-    registry: AdapterRegistry,
-    source: Source | None,
-    data: dict[str, Any],
-    err: ValidationError | Invalid,
-) -> HTMLResponse:
-    problems = error_list(err) if isinstance(err, ValidationError) else err.problems
-    errors = {row["loc"]: row["msg"] for row in problems}
-    values = echo_form_values(data)
-    return _form_page(request, user, registry, source, values, errors, status_code=422)
+    async def render(
+        self,
+        source: Source | None,
+        values: dict[str, Any],
+        errors: dict[str, str],
+        status_code: int = 200,
+    ) -> HTMLResponse:
+        user, registry = self._user, self._registry
+        adapter_id = values["adapter_id"]
+        context = {
+            "user": user,
+            "source": source,
+            "adapters": registry.all(user.id),
+            "definition": registry.get(adapter_id, user.id) if adapter_id else None,
+            "values": values,
+            "errors": errors,
+            "param_prefix": PARAM_PREFIX,
+            "calendars": await calendar_choices(self._db, self._google, user),
+        }
+        return render(self._request, "sources/form.html", context, status_code=status_code)
+
+    async def rejected(
+        self, source: Source | None, data: dict[str, Any], err: ValidationError | Invalid
+    ) -> HTMLResponse:
+        problems = error_list(err) if isinstance(err, ValidationError) else err.problems
+        errors = {row["loc"]: row["msg"] for row in problems}
+        return await self.render(source, echo_form_values(data), errors, status_code=422)

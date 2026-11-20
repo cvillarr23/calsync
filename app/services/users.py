@@ -42,3 +42,10 @@ def _adopted_local_user(db: Session, email: str) -> User | None:
     if user is not None:
         user.email = email.lower()
     return user
+
+
+def forget_google_grant(db: Session, user_id: int) -> None:
+    """Drop a refresh token Google no longer accepts; sign-in then goes through consent."""
+    user = db.get(User, user_id)
+    if user is not None:
+        user.refresh_token_enc = None

@@ -18,7 +18,7 @@ Your session lasts 30 days. **Sign out** in the top-right ends it; your sources 
 
 The **Sources** page lists each source with:
 
-- **Status**: `ok`, `error` with the error and a hint about what to do, or `never run`.
+- **Status**: `ok`, `error` with the error and a hint about what to do, or `never run`. A source that syncs to Google shows **Reconnect Google** when calsync has lost access; see [Reconnecting Google](google-calendar.md#reconnecting-google).
 - **Last run** and **Next run**. The next run is the source's interval after the last one, and longer while the site keeps failing; see [Scheduling](api.md#scheduling). A paused source has no next run.
 - **Matched**: how many upcoming events pass the source's filters right now.
 - **Feed**: the source's `.ics` URL, with a **Copy** button. Anyone with this URL can read the feed; see [Calendar feeds](feeds.md).
@@ -32,10 +32,11 @@ The **Sources** page lists each source with:
 2. Pick the **Adapter** if none was suggested, and fill in its parameters. Parameters with a default can be left blank.
 3. Add **Include keywords** and **Exclude keywords**, one per line. An event is kept when its title contains any include keyword, unless it contains an exclude keyword. With no include keywords, every event is kept. Matching ignores case and extra spaces.
 4. Set how often to sync (at least `CALSYNC_MIN_INTERVAL_MIN` minutes) and how many days ahead to read.
+5. Under **Google Calendar**, pick the calendar to sync to, or leave **None (.ics feed only)**. If calsync can't list your calendars, a **Reconnect Google** link appears; your current choice is kept.
 
 The **Preview** on the right updates as you type. It shows which events would be synced (**Matched**) and which the filters drop (**Excluded**). The adapter runs once; changing keywords only re-filters what it read, so you can try keywords freely. Changing the adapter, its parameters or the lookahead runs it again. Results are kept for about five minutes.
 
-Syncing to a Google Calendar isn't available yet. Every source is served as an `.ics` feed.
+Every source is served as an `.ics` feed. A source with a Google Calendar also writes its matched events there on each sync; see [Google Calendar sync](google-calendar.md).
 
 ## Adapters
 

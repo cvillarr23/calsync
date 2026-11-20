@@ -17,7 +17,9 @@ The redirect URI calsync sends is exactly `CALSYNC_BASE_URL` with `/auth/callbac
 
 ## How sign-in works
 
-- calsync asks for the scopes above with `access_type=offline`, so Google returns a **refresh token** that lets calsync sync while you're signed out. The token is encrypted with `CALSYNC_TOKEN_ENC_KEY` before it's stored.
+- calsync asks for the scopes above with `access_type=offline`, so Google returns a **refresh token** that lets calsync sync while you're signed out. The token is encrypted with `CALSYNC_TOKEN_ENC_KEY` before it's stored. Syncs trade it for short-lived access tokens, which are kept in memory only.
+- If Google stops accepting the refresh token, because you revoked calsync's access or the consent screen is in *Testing* mode, calsync forgets it and asks you to **Reconnect Google**; see [Reconnecting Google](google-calendar.md#reconnecting-google). Changing `CALSYNC_TOKEN_ENC_KEY` has the same effect, as stored tokens can no longer be decrypted.
+- `calendar.calendarlist.readonly` fills the source form's calendar list; `calendar.events` lets calsync add, change and delete its own events. calsync never reads or changes events it didn't create.
 - Google only sends a refresh token from its consent screen. If a sign-in comes back without one and calsync has none stored for you, it sends you through the consent screen once more.
 - After Google's sign-in, calsync checks the account. The email must be verified by Google and, when `CALSYNC_ALLOWED_EMAILS` is set, on that list. Any other account sees an "isn't allowed" page, and no session is created.
 - The sign-in `state` and `nonce` are checked on the way back, so a callback link can't be replayed or forged.

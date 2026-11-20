@@ -44,10 +44,11 @@ def feed_source(client):
 
 def _sync(client, source_id, events):
     state = client.app.state
-    with state.sessions.begin() as db:
+    with state.sessions() as db:
         source = db.get(Source, source_id)
         runner = FakeRunner(events)
         result = asyncio.run(run_source(db, source, registry=state.adapters, runner=runner))
+        db.commit()
     assert result.status == "ok", result.error
 
 
