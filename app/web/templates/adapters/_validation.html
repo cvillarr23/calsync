@@ -1,0 +1,9 @@
+{% if problems %}
+<div class="notice error">{{ problems | length }} problem{{ "s" if problems | length != 1 }} in this definition</div>
+{% include "adapters/_problems.html" %}
+{% elif definition %}
+<p class="status-ok">Valid {{ definition.kind }} definition: {{ definition.name }} (v{{ definition.version }})</p>
+{% endif %}
+{% if oob %}
+<div id="test-params" hx-swap-oob="true">{% include "adapters/_test_params.html" %}</div>
+{% endif %}

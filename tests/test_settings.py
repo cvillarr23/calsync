@@ -52,5 +52,10 @@ def test_allowed_emails_parsed(required_env):
 @pytest.mark.parametrize("key", ["your-fernet-key", "c2hvcnQ="])
 def test_token_key_must_be_a_fernet_key(required_env, key):
     required_env.setenv("CALSYNC_TOKEN_ENC_KEY", key)
-    with pytest.raises(SettingsError, match="CALSYNC_TOKEN_ENC_KEY"):
+    with pytest.raises(SettingsError, match="CALSYNC_TOKEN_ENC_KEY") as err:
         load_settings()
+    assert "Fernet.generate_key()" in str(err.value)
+
+
+def test_redirect_uri_has_no_double_slash(required_env):
+    assert load_settings().redirect_uri == "https://calsync.example/auth/callback"

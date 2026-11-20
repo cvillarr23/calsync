@@ -38,7 +38,7 @@ def sessions(tmp_path):
 @pytest.fixture
 def registry():
     registry = AdapterRegistry()
-    registry.add_source(lambda: [parse_definition(HTML_DEF)])
+    registry.add_source(lambda user_id: [parse_definition(HTML_DEF)])
     return registry
 
 

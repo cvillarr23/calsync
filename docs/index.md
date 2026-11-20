@@ -14,6 +14,7 @@ Many community calendars have no `.ics` export: room-booking systems, rec-center
 ## Where to next
 
 - [Quickstart](quickstart.md): get an instance running.
+- [Using the web UI](usage.md): sign in, add sources and write adapters.
 - [Configuration](configuration.md): every environment variable.
 - [Google OAuth](google-oauth.md): create the OAuth client calsync signs in with.
 - [Adapters](adapters/index.md): describe a new site.

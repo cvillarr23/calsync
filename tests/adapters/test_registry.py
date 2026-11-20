@@ -56,11 +56,19 @@ def test_user_definitions_come_from_sources(tmp_path, uw_ems, html_def):
     registry = AdapterRegistry.with_builtins(tmp_path)
     shadow = parse_definition({**html_def, "id": "uw-ems"})
     mine = parse_definition(html_def)
-    registry.add_source(lambda: [shadow, mine])
-    assert registry.get("rec-center") is mine
-    assert registry.get("uw-ems").kind == "pipeline"
-    assert [d.id for d in registry.all()] == ["uw-ems", "rec-center"]
-    assert registry.get("missing") is None
+    registry.add_source(lambda user_id: [shadow, mine] if user_id == 1 else [])
+    assert registry.get("rec-center", 1) is mine
+    assert registry.get("uw-ems", 1).kind == "pipeline"
+    assert [d.id for d in registry.all(1)] == ["uw-ems", "rec-center"]
+    assert registry.get("missing", 1) is None
+
+
+def test_user_definitions_are_per_user(html_def):
+    registry = AdapterRegistry()
+    registry.add_source(lambda user_id: [parse_definition(html_def)] if user_id == 1 else [])
+    assert registry.get("rec-center", 2) is None
+    assert registry.get("rec-center") is None
+    assert registry.all(2) == []
 
 
 def sample_adapter():

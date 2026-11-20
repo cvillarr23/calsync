@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}Not allowed{% endblock %}
+{% block content %}
+<h1>This account can't sign in</h1>
+<div class="card">
+  {% if not verified %}
+  <p>Google hasn't verified the email address <strong>{{ email }}</strong>, so calsync can't trust it.</p>
+  {% else %}
+  <p><strong>{{ email }}</strong> isn't on this instance's list of allowed accounts.</p>
+  <p class="muted small">The person running calsync can add it to <code>CALSYNC_ALLOWED_EMAILS</code>.</p>
+  {% endif %}
+  <p><a class="button" href="/auth/login">Try another account</a></p>
+</div>
+{% endblock %}

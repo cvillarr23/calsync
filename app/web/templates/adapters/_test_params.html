@@ -1,0 +1,9 @@
+{% if definition and definition.params %}
+{% for name, param in definition.params.items() %}
+<label for="test-param-{{ name }}">{{ name }} <span class="muted">· {{ param.type }}{% if param.description %}, {{ param.description }}{% endif %}</span></label>
+<input id="test-param-{{ name }}" name="param.{{ name }}" value="{{ values.get(name, '') }}"
+       type="{{ 'url' if param.type == 'url' else ('number' if param.type == 'int' else 'text') }}"
+       {% if param.default is not none %}placeholder="{{ param.default }} (default)"{% endif %}>
+{% endfor %}
+{% elif definition %}<p class="muted small">This definition takes no parameters.</p>
+{% else %}<p class="muted small">Fix the definition to fill in its parameters.</p>{% endif %}

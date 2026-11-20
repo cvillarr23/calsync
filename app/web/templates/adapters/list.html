@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}Adapters{% endblock %}
+{% block content %}
+<div class="row-actions" style="justify-content: space-between">
+  <h1>Adapters</h1>
+  <div class="row-actions">
+    <a class="button" href="/adapters/import">Import</a>
+    <a class="button primary" href="/adapters/new">New adapter</a>
+  </div>
+</div>
+<p class="muted">An adapter tells calsync how to read one kind of site. Sources pick an adapter and fill in its parameters.</p>
+{% if definitions %}
+<div class="card table-wrap">
+  <table>
+    <thead><tr><th>Name</th><th>Id</th><th>Kind</th><th>Version</th><th></th><th></th></tr></thead>
+    <tbody>
+    {% for d in definitions %}
+      <tr>
+        <td><a href="/adapters/{{ d.id }}">{{ d.name }}</a></td>
+        <td><code>{{ d.id }}</code></td>
+        <td>{{ d.kind }}</td>
+        <td>{{ d.version }}</td>
+        <td class="muted small">{{ "built-in" if d.id in builtin else "yours" }}</td>
+        <td><a href="/adapters/{{ d.id }}.yaml">Export</a></td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="card"><p>No adapters yet. <a href="/adapters/new">Write one</a> or <a href="/adapters/import">import</a> a definition someone shared.</p></div>
+{% endif %}
+{% endblock %}

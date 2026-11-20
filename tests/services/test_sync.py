@@ -36,7 +36,7 @@ def registry():
         HTML_DEF, params={"url": {"type": "url"}, "days": {"type": "int", "default": 7}}
     )
     registry = AdapterRegistry()
-    registry.add_source(lambda: [parse_definition(definition)])
+    registry.add_source(lambda user_id: [parse_definition(definition)])
     return registry
 
 

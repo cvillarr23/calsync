@@ -2,8 +2,13 @@
 
 The web UI uses a plain JSON API under `/api`. Scripts and other clients can use the same API to manage sources and adapter definitions.
 
-!!! warning "No sign-in yet"
-    Google sign-in has not been built yet, so every API request acts as one local user. Don't expose an instance to an untrusted network until sign-in lands.
+## Authentication
+
+The API uses the same session as the web UI. Sign in in a browser first; requests without a valid session get `401`.
+
+Every `POST`, `PUT`, `PATCH` and `DELETE` must also send the session's CSRF token in an `X-CSRF-Token` header, or it gets `403`. The token is in each page's `<meta name="csrf-token">`. This stops other sites from using your signed-in browser to change your sources.
+
+Adapter definitions and sources belong to the account that created them. You only see and use your own, plus the built-in definitions.
 
 ## Errors
 
@@ -19,7 +24,7 @@ Other errors return `404` (not found) or `409` (conflict), with a message in `de
 
 | Method and path | Description |
 |---|---|
-| `GET /api/adapters` | Lists built-in and user definitions: `id`, `name`, `kind`, `version` and `builtin`. |
+| `GET /api/adapters` | Lists the built-in definitions and yours: `id`, `name`, `kind`, `version` and `builtin`. |
 | `GET /api/adapters/{id}` | One definition, with its parsed `definition` and its `yaml` text. |
 | `POST /api/adapters` | Creates a definition. Returns `201`. |
 | `PUT /api/adapters/{id}` | Replaces a definition. The `id` in the body must match the one in the path. |
@@ -71,10 +76,12 @@ calsync syncs each enabled source on its own, in the background:
 - The schedule is worked out from `last_run_at` and `consecutive_failures`, so it carries over a restart. A sync that fell due while calsync was down runs at startup.
 - A source never syncs twice at once. A scheduled sync that finds the source busy is skipped, and Sync now returns `409`.
 
-Example:
+Example, with the session cookie and CSRF token copied from a signed-in browser:
 
 ```sh
 curl -X POST https://calsync.example/api/sources \
+  -b 'calsync_session=your-session-cookie' \
+  -H 'X-CSRF-Token: your-csrf-token' \
   -H 'Content-Type: application/json' \
   -d '{"name": "Public skate", "adapter_id": "my-rink",
        "params": {"page_url": "https://rink.example/schedule"},

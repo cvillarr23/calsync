@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block title %}{{ source.name if source else "New source" }}{% endblock %}
+{% block content %}
+<h1>{{ "Edit " ~ source.name if source else "New source" }}</h1>
+{% if errors %}<div class="notice error">Fix the highlighted fields, then save again.</div>{% endif %}
+<div class="grid-2">
+  <form id="source-form" class="card" method="post" action="{{ '/sources/%d' % source.id if source else '/sources/new' }}"
+        hx-post="/sources/preview" hx-trigger="input changed delay:500ms, change delay:500ms, load" hx-target="#preview" hx-sync="this:replace">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+
+    <label for="url">Calendar page URL <span class="muted">· paste it to get an adapter suggestion</span></label>
+    <input id="url" type="url" name="url" placeholder="https://…"
+           hx-get="/sources/suggest" hx-trigger="input changed delay:400ms" hx-target="#adapter-picker" hx-include="this">
+
+    <label for="adapter_id">Adapter</label>
+    <div id="adapter-picker">
+      {% with selected=values.adapter_id, autoload=false %}{% include "sources/_adapter_select.html" %}{% endwith %}
+    </div>
+    {% if errors.get("adapter_id") %}<div class="field-error">{{ errors["adapter_id"] }}</div>{% endif %}
+
+    <div id="params">
+      {% with values=values.params, pasted_url="" %}{% include "sources/_params.html" %}{% endwith %}
+    </div>
+
+    <label for="name">Name</label>
+    <input id="name" type="text" name="name" value="{{ values.name }}" placeholder="Public skate">
+    {% if errors.get("name") %}<div class="field-error">{{ errors["name"] }}</div>{% endif %}
+
+    <label for="include_kw">Include keywords <span class="muted">· one per line; empty keeps every event</span></label>
+    <textarea id="include_kw" name="include_kw" rows="3">{{ values.include_kw }}</textarea>
+
+    <label for="exclude_kw">Exclude keywords <span class="muted">· one per line; an exclude match always wins</span></label>
+    <textarea id="exclude_kw" name="exclude_kw" rows="3">{{ values.exclude_kw }}</textarea>
+
+    <div class="grid-2">
+      <div>
+        <label for="interval_min">Sync every (minutes)</label>
+        <input id="interval_min" type="number" name="interval_min" value="{{ values.interval_min if values.interval_min is not none else '' }}">
+        {% if errors.get("interval_min") %}<div class="field-error">{{ errors["interval_min"] }}</div>{% endif %}
+      </div>
+      <div>
+        <label for="lookahead_days">Look ahead (days)</label>
+        <input id="lookahead_days" type="number" name="lookahead_days" value="{{ values.lookahead_days if values.lookahead_days is not none else '' }}">
+        {% if errors.get("lookahead_days") %}<div class="field-error">{{ errors["lookahead_days"] }}</div>{% endif %}
+      </div>
+    </div>
+
+    <label for="target">Google Calendar</label>
+    <select id="target" disabled><option>None (.ics feed only)</option></select>
+    <div class="muted small">Syncing to a Google Calendar is coming soon; the feed works now.</div>
+
+    <label><input type="checkbox" name="enabled" {% if values.enabled %}checked{% endif %}> Enabled</label>
+
+    <div class="row-actions" style="margin-top:1rem">
+      <button class="primary" type="submit">{{ "Save" if source else "Create source" }}</button>
+      <a href="/">Cancel</a>
+    </div>
+  </form>
+
+  <div>
+    <div class="card">
+      <h2 style="margin-top:0">Preview <span class="htmx-indicator muted small">updating…</span></h2>
+      <div id="preview" aria-live="polite"><p class="muted">Pick an adapter and fill in its parameters.</p></div>
+    </div>
+    {% if source %}
+    <form method="post" action="/sources/{{ source.id }}/delete" onsubmit="return confirm('Delete this source and its stored events?')">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <button class="danger" type="submit">Delete source</button>
+    </form>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,13 @@
+{% if definition and definition.params %}
+{% for name, param in definition.params.items() %}
+{% set value = values.get(name, "") if values.get(name) is not none else "" %}
+{% if not value and param.type == "url" and pasted_url %}{% set value = pasted_url %}{% endif %}
+<label for="param-{{ name }}">{{ name }} {% if param.description %}<span class="muted">· {{ param.description }}</span>{% endif %}</label>
+<input id="param-{{ name }}" name="param.{{ name }}" value="{{ value }}"
+       type="{{ 'url' if param.type == 'url' else ('number' if param.type == 'int' else 'text') }}"
+       {% if param.default is not none %}placeholder="{{ param.default }} (default)"{% endif %}>
+{% if errors.get("params." ~ name) %}<div class="field-error">{{ errors["params." ~ name] }}</div>{% endif %}
+{% endfor %}
+{% elif definition %}
+<p class="muted small">This adapter takes no parameters.</p>
+{% endif %}

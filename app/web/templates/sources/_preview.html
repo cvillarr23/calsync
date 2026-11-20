@@ -1,0 +1,14 @@
+{% if problems %}
+<p class="muted">Fill these in to see a preview:</p>
+<ul>{% for p in problems %}<li><code>{{ p.loc }}</code> {{ p.msg }}</li>{% endfor %}</ul>
+{% elif preview.error %}
+{% set hint = run_hint(preview.error) %}
+<div class="notice error">{{ preview.error }}</div>
+{% if hint %}<p class="hint muted">{{ hint.text }} <a href="{{ hint.url }}" target="_blank" rel="noopener">More</a></p>{% endif %}
+{% else %}
+<p class="small muted">Read from the site in the last few minutes. Changing keywords re-filters without fetching again.</p>
+<h2 id="matched">Matched ({{ preview.matched | length }})</h2>
+{% with events=preview.matched %}{% include "sources/_events.html" %}{% endwith %}
+<h2 id="excluded">Excluded ({{ preview.excluded | length }})</h2>
+{% with events=preview.excluded %}{% include "sources/_events.html" %}{% endwith %}
+{% endif %}

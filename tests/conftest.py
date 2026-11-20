@@ -37,18 +37,52 @@ def app_env(required_env, tmp_path):
 
 
 @pytest.fixture
-def client(app_env):
-    """A test client with the app's lifespan running, so the database is open.
+def google():
+    from tests.support import FakeGoogle
 
+    return FakeGoogle()
+
+
+@pytest.fixture
+def make_client(app_env, google):
+    """Builds signed-out test clients from the environment as it is when called.
+
+    Each runs the app's lifespan with Google faked. The base URL is https because
+    the session cookie is Secure on https instances.
     The scheduler is paused: jobs exist, but no real sync starts behind a test's back.
     """
+    from contextlib import ExitStack
+
     from fastapi.testclient import TestClient
 
     from app.main import create_app
+    from app.services.auth import GoogleOAuth
     from app.settings import load_settings
 
-    with TestClient(create_app(load_settings(), run_scheduler=False)) as test_client:
-        yield test_client
+    def build():
+        settings = load_settings()
+        app = create_app(settings, run_scheduler=False)
+        app.state.google = GoogleOAuth(settings, transport=google.transport)
+        return stack.enter_context(TestClient(app, base_url="https://testserver"))
+
+    with ExitStack() as stack:
+        yield build
+
+
+@pytest.fixture
+def anon_client(make_client):
+    return make_client()
+
+
+@pytest.fixture
+def client(anon_client, google):
+    """Signed in as me@example.com, sending the session's CSRF token on every request."""
+    from tests.support import google_sign_in, page_csrf_token
+
+    response = google_sign_in(anon_client, google)
+    assert response.status_code == 303, response.text
+    anon_client.headers["X-CSRF-Token"] = page_csrf_token(anon_client)
+    return anon_client
 
 
 @pytest.fixture

@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}Sources{% endblock %}
+{% block content %}
+<div class="row-actions" style="justify-content: space-between">
+  <h1>Sources</h1>
+  <a class="button primary" href="/sources/new">New source</a>
+</div>
+{% if request.query_params.get("created") %}<div class="notice ok">Source created. Click <strong>Sync now</strong> to run it the first time.</div>{% endif %}
+{% if request.query_params.get("saved") %}<div class="notice ok">Source saved.</div>{% endif %}
+{% if rows %}
+<div class="card table-wrap">
+  <table>
+    <thead>
+      <tr><th>Source</th><th>Status</th><th>Last run</th><th>Next run</th><th>Matched</th><th>Feed</th><th></th></tr>
+    </thead>
+    <tbody>
+      {% for row in rows %}{% include "sources/_row.html" %}{% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="card">
+  <p>No sources yet. A source is a calendar page plus the adapter that reads it.</p>
+  <p class="muted small">If no adapter knows your site yet, <a href="/adapters/new">write one</a> first.</p>
+</div>
+{% endif %}
+{% endblock %}

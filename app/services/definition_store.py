@@ -35,9 +35,12 @@ class DefinitionStore:
     def __init__(self, sessions: sessionmaker[Session]) -> None:
         self._sessions = sessions
 
-    def definitions(self) -> list[AdapterDefinition]:
+    def definitions(self, user_id: int) -> list[AdapterDefinition]:
+        """One user's definitions. Ids are still unique across users, but lookups never
+        cross users, so making ids per-user later only changes the key."""
         with self._sessions() as db:
-            rows = db.scalars(select(AdapterDef).order_by(AdapterDef.id)).all()
+            query = select(AdapterDef).where(AdapterDef.user_id == user_id)
+            rows = db.scalars(query.order_by(AdapterDef.id)).all()
         return [definition for row in rows if (definition := _valid_or_none(row))]
 
 

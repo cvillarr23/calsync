@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="csrf-token" content="{{ csrf_token }}">
+  <title>{% block title %}calsync{% endblock %} · calsync</title>
+  <link rel="stylesheet" href="/static/app.css">
+  <script src="/static/htmx.min.js" defer></script>
+  <script src="/static/app.js" defer></script>
+</head>
+<body hx-headers='{{ {"X-CSRF-Token": csrf_token} | tojson }}'>
+  <header class="top">
+    <a class="brand" href="/">calsync</a>
+    {% if user %}
+    <nav>
+      <a href="/">Sources</a>
+      <a href="/adapters">Adapters</a>
+    </nav>
+    <div class="who small">
+      <span>{{ user.email }}</span>
+      <form method="post" action="/auth/logout">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <button class="link" type="submit">Sign out</button>
+      </form>
+    </div>
+    {% endif %}
+  </header>
+  <main>
+    {% block content %}{% endblock %}
+  </main>
+</body>
+</html>

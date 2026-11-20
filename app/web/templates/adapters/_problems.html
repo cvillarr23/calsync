@@ -1,0 +1,8 @@
+<ul class="problems">
+{% for p in problems %}
+  <li>
+    <code>{{ p.loc }}</code>{% if p.line %} <span class="muted small">line {{ p.line }}</span>{% endif %}: {{ p.msg }}
+    {% if p.hint %}<div class="hint muted">{{ p.hint.text }} <a href="{{ p.hint.url }}" target="_blank" rel="noopener">More</a></div>{% endif %}
+  </li>
+{% endfor %}
+</ul>

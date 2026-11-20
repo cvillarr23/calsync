@@ -15,7 +15,8 @@ from app.adapters.schema import AdapterDefinition, PythonDefinition, error_list,
 
 BUILTIN_DIR = Path(__file__).resolve().parents[2] / "adapters"
 
-DefinitionSource = Callable[[], Iterable[AdapterDefinition]]
+DefinitionSource = Callable[[int], Iterable[AdapterDefinition]]
+"""Returns one user's definitions: `source(user_id)`."""
 
 PYTHON_ADAPTERS: dict[str, Callable[..., Any]] = {}
 """Functions that python-kind definitions may name, keyed by `module:function`."""
@@ -51,14 +52,18 @@ class AdapterRegistry:
         """Add a provider of non-built-in definitions, such as the user definition store."""
         self._sources.append(source)
 
-    def get(self, adapter_id: str) -> AdapterDefinition | None:
-        """Look up a definition; built-ins win over user definitions with the same id."""
+    def get(self, adapter_id: str, user_id: int | None = None) -> AdapterDefinition | None:
+        """Look up a built-in, or one of `user_id`'s definitions; built-ins win on a clash.
+
+        Without a user, only built-ins are visible.
+        """
         if adapter_id in self._builtins:
             return self._builtins[adapter_id]
-        return next((d for d in self._from_sources() if d.id == adapter_id), None)
+        return next((d for d in self._from_sources(user_id) if d.id == adapter_id), None)
 
-    def all(self) -> list[AdapterDefinition]:
-        user = [d for d in self._from_sources() if d.id not in self._builtins]
+    def all(self, user_id: int | None = None) -> list[AdapterDefinition]:
+        """The built-ins plus `user_id`'s own definitions."""
+        user = [d for d in self._from_sources(user_id) if d.id not in self._builtins]
         return [*self._builtins.values(), *user]
 
     def is_builtin(self, adapter_id: str) -> bool:
@@ -69,9 +74,11 @@ class AdapterRegistry:
             raise RegistryError(f"{file.name}: duplicate adapter id {definition.id!r}")
         self._builtins[definition.id] = definition
 
-    def _from_sources(self) -> Iterator[AdapterDefinition]:
+    def _from_sources(self, user_id: int | None) -> Iterator[AdapterDefinition]:
+        if user_id is None:
+            return
         for source in self._sources:
-            yield from source()
+            yield from source(user_id)
 
 
 def _definition_files(path: Path) -> list[Path]:

@@ -1,14 +1,16 @@
 """Runtime configuration, read from environment variables only."""
 
-import base64
-import binascii
 from pathlib import Path
 from typing import Annotated, Any
 
+from cryptography.fernet import Fernet
 from pydantic import AnyHttpUrl, Field, SecretStr, ValidationError, field_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 MIB = 1024 * 1024
+FERNET_HINT = (
+    'python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"'
+)
 
 
 def _env(name: str, default: Any = ..., **kwargs: Any) -> Any:
@@ -41,13 +43,20 @@ class Settings(BaseSettings):
     @field_validator("token_enc_key")
     @classmethod
     def _fernet_key(cls, value: SecretStr) -> SecretStr:
+        """Check the key now, so a bad one fails at startup rather than at first sign-in."""
         try:
-            raw = base64.urlsafe_b64decode(value.get_secret_value().encode())
-        except (binascii.Error, ValueError):
-            raw = b""
-        if len(raw) != 32:
-            raise ValueError("must be a Fernet key: 32 bytes, url-safe base64 encoded")
+            Fernet(value.get_secret_value())
+        except ValueError:
+            raise ValueError(
+                "must be a Fernet key (32 bytes, url-safe base64); "
+                f"generate one with: {FERNET_HINT}"
+            ) from None
         return value
+
+    @property
+    def redirect_uri(self) -> str:
+        """`AnyHttpUrl` always ends in `/`; joining by hand keeps `//` out of the URI."""
+        return str(self.base_url).rstrip("/") + "/auth/callback"
 
     @field_validator("allowed_emails", mode="before")
     @classmethod

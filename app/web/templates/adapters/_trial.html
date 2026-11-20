@@ -1,0 +1,32 @@
+{% if problems %}
+<div class="notice error">Fix the definition before testing it.</div>
+{% include "adapters/_problems.html" %}
+{% elif trial.error %}
+<div class="notice error">{{ trial.error }}</div>
+{% if hint %}<p class="hint muted">{{ hint.text }} <a href="{{ hint.url }}" target="_blank" rel="noopener">More</a></p>{% endif %}
+{% else %}
+<p><strong>{{ trial.events | length }}</strong> event{{ "s" if trial.events | length != 1 }} read{% if trial.problems %}, <strong class="status-error">{{ trial.problems | length }}</strong> item{{ "s" if trial.problems | length != 1 }} left out{% endif %}.</p>
+{% if trial.problems %}
+<h2>Field errors</h2>
+<div class="table-wrap"><table>
+  <thead><tr><th>Item</th><th>Field</th><th>Problem</th></tr></thead>
+  <tbody>{% for p in trial.problems %}<tr><td>{{ p.where }}</td><td><code>{{ p.field }}</code></td><td>{{ p.msg }}</td></tr>{% endfor %}</tbody>
+</table></div>
+{% endif %}
+<h2>Events</h2>
+{% if trial.events %}
+<div class="table-wrap"><table>
+  <thead><tr><th>Starts</th><th>Ends</th><th>Title</th><th>Location</th></tr></thead>
+  <tbody>
+  {% for e in trial.events %}
+    <tr>
+      <td><time data-local datetime="{{ e.start_utc.isoformat() }}">{{ e.start_utc | utc }}</time></td>
+      <td>{% if e.end_utc %}<time data-local datetime="{{ e.end_utc.isoformat() }}">{{ e.end_utc | utc }}</time>{% endif %}</td>
+      <td>{{ e.title }}</td>
+      <td>{{ e.location or "" }}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table></div>
+{% else %}<p class="muted">No events in this window.</p>{% endif %}
+{% endif %}

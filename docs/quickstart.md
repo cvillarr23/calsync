@@ -10,7 +10,7 @@ Follow [Google OAuth](google-oauth.md). Use `<your base URL>/auth/callback` as t
 
 ```sh
 python3 -c "import secrets; print(secrets.token_urlsafe(32))"                            # CALSYNC_SESSION_SECRET
-python3 -c "import base64, os; print(base64.urlsafe_b64encode(os.urandom(32)).decode())" # CALSYNC_TOKEN_ENC_KEY
+python3 -c "import base64, os; print(base64.urlsafe_b64encode(os.urandom(32)).decode())" # CALSYNC_TOKEN_ENC_KEY (a Fernet key)
 ```
 
 ## 3. Run the container
@@ -49,4 +49,4 @@ Google only accepts HTTPS redirect URIs for hosts other than `localhost`, so a p
 
 ## 6. Sign in and add a source
 
-Open your base URL, sign in with Google, and add a source. Then choose a target calendar or copy the source's feed URL.
+Open your base URL, sign in with Google, and add a source. Then copy the source's feed URL into your calendar app. [Using the web UI](usage.md) walks through each page.

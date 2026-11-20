@@ -81,7 +81,7 @@ The template and cross-field checks described above run only on the server.
 
 ## Built-in and user definitions
 
-- **User definitions** are created in the UI and stored in the database. They can use the `pipeline` and `html` kinds.
+- **User definitions** are created in the [adapter editor](../usage.md#writing-an-adapter) and stored in the database. They belong to the account that created them; ids are still unique across all accounts. They can use the `pipeline` and `html` kinds.
 - **Built-in definitions** ship with calsync as YAML files in the `adapters/` directory and are read-only. None ship yet.
 - The **`python`** kind names a function registered in calsync's code, as `entrypoint: module:function`. It is the escape hatch for sites the declarative kinds can't handle, so it is limited to built-in definitions. A user definition with `kind: python` is rejected.
 
@@ -91,5 +91,5 @@ Adapters fetch URLs that users supply, so every fetch is constrained:
 
 - **SSRF guard.** Before connecting, calsync resolves the host and checks **every** address it resolves to. It refuses private (`10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`), loopback (`127.0.0.0/8`, `::1`), link-local (`169.254.0.0/16`, which includes cloud metadata endpoints), CGNAT (`100.64.0.0/10`), unspecified, multicast and reserved addresses. IPv6 forms that embed an IPv4 address (IPv4-mapped, IPv4-compatible and NAT64 `64:ff9b::/96`) are refused too. The connection goes to the address that was checked, so DNS rebinding can't swap it. Each redirect hop is checked the same way. Environment proxy settings are ignored. Set `CALSYNC_FETCH_ALLOW_PRIVATE=true` only if you need to read calendars on your own network.
 - **Per-run budget.** One adapter run shares a time limit (`CALSYNC_FETCH_TIMEOUT_S`), a request limit (`CALSYNC_FETCH_MAX_PAGES`, which counts redirect hops) and a download limit (`CALSYNC_FETCH_MAX_BYTES`, which counts decompressed bytes, redirect bodies included). A run that exceeds any of them fails with an error saying which. See [Configuration](../configuration.md).
-- **Preview cache.** While you edit a definition, the pages that previews fetch are cached for about five minutes. Tweaking a selector doesn't hit the site again. Only successful (2xx) pages are cached. The cache key includes the request headers, and a cache hit restores the cookies the original fetch set, so multi-step definitions behave the same whether a step was cached or not.
+- **Preview cache.** While you edit a definition, the pages that **Test with params** fetches are cached for about five minutes. Tweaking a selector doesn't hit the site again. Only successful (2xx) pages are cached. The cache key includes the request headers, and a cache hit restores the cookies the original fetch set, so multi-step definitions behave the same whether a step was cached or not.
 - **Requests.** Each run keeps its own cookie jar and sends `calsync/<version>` as its User-Agent unless the definition sets one.

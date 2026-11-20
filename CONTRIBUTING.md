@@ -41,20 +41,26 @@ app/
   schemas/             API request and response bodies (Pydantic), one file per resource
   services/            application logic with no HTTP in it
     sync/              one sync run, one step per module (scrape, event_store, status, ...)
+    auth/              Google sign-in: the OAuth client, the allowlist, the Identity
     scheduling/        when sources sync: backoff.py (delays), runs.py (one run per
                        source at a time), scheduler.py (APScheduler jobs, Sync now)
+    preview/           runs that store nothing: the source form's preview and the
+                       editor's Test with params
   mappers/             ORM rows and definitions → API schemas, and back
   api/
     deps.py            shared route dependencies (current user, registry, settings)
+    csrf.py            the CSRF token check on every state-changing request
     errors.py          HTTP error helpers in the API's error shape
     <resource>.py      one router per resource (adapters, sources, feeds, schema)
-tests/                 mirrors app/: tests/db, tests/services, tests/api, tests/adapters
+  web/                 the UI: one router per page group (auth, sources, adapters),
+                       Jinja2 templates/, static/ (vendored htmx, css), errors.py
+tests/                 mirrors app/: tests/db, tests/services, tests/api, tests/adapters, tests/web
   support.py           fakes shared across test packages
 ```
 
 How the layers depend on each other:
 
-- `api` calls `services` and `mappers`, and raises HTTP errors. Business rules don't go in route modules.
+- `api` and `web` call `services` and `mappers`. Business rules don't go in route modules. Services raise `app.services.errors` exceptions; `web/errors.py` turns them into JSON under `/api` and into pages elsewhere.
 - `services` work on `db.models` and `adapters`. They never import from `api` or `fastapi`, so the scheduler and other clients can reuse them.
 - `mappers` only convert between shapes. They make no decisions and no queries.
 - `db.models` holds no logic beyond column defaults.

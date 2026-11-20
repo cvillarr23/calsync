@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}{{ adapter_id or "New adapter" }}{% endblock %}
+{% block content %}
+<div class="row-actions" style="justify-content: space-between">
+  <h1>{% if mode == "new" %}New adapter{% elif mode == "builtin" %}{{ adapter_id }} <span class="muted small">built-in, read-only</span>{% else %}{{ adapter_id }}{% endif %}</h1>
+  <div class="row-actions">
+    {% if adapter_id %}<a class="button" href="/adapters/{{ adapter_id }}.yaml">Export YAML</a>
+    <a class="button" href="/adapters/new?copy={{ adapter_id }}">Copy as new</a>{% endif %}
+  </div>
+</div>
+{% if saved %}<div class="notice ok">Saved.</div>{% endif %}
+<div class="grid-2">
+  <form id="editor-form" class="card" method="post" action="{{ '/adapters/' ~ adapter_id if mode == 'edit' else '/adapters' }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <label for="yaml">Definition (YAML) <span class="muted">· <a href="https://cvillarr23.github.io/calsync/adapters/" target="_blank" rel="noopener">reference</a></span></label>
+    <textarea id="yaml" name="yaml" class="code" spellcheck="false" {% if mode == "builtin" %}readonly{% endif %}
+              hx-post="/adapters/validate" hx-trigger="input changed delay:600ms" hx-target="#validation" hx-sync="this:replace">{{ text }}</textarea>
+    <div id="validation" aria-live="polite" style="margin-top:.75rem">
+      {% if problems %}<div class="notice error">Not saved: {{ problems | length }} problem{{ "s" if problems | length != 1 }}</div>{% include "adapters/_problems.html" %}
+      {% elif definition %}<p class="status-ok">Valid {{ definition.kind }} definition: {{ definition.name }} (v{{ definition.version }})</p>{% endif %}
+    </div>
+
+    <h2>Test with params</h2>
+    <div id="test-params">{% include "adapters/_test_params.html" %}</div>
+    <label for="days">Days to read</label>
+    <input id="days" type="number" name="days" value="{{ test_days }}" min="1" max="366">
+    <div class="row-actions" style="margin-top:1rem">
+      <button type="button" hx-post="/adapters/test" hx-include="#editor-form" hx-target="#trial" hx-indicator="#trial-wait" hx-disabled-elt="this">Test with params</button>
+      {% if mode != "builtin" %}<button class="primary" type="submit">Save</button>{% endif %}
+      <span id="trial-wait" class="htmx-indicator muted small">Fetching…</span>
+    </div>
+  </form>
+  <div>
+    <div class="card">
+      <h2 style="margin-top:0">Test results</h2>
+      <div id="trial" aria-live="polite"><p class="muted">Fill in the parameters and click <strong>Test with params</strong> to see the events this definition reads, and why any item was left out. Pages are cached for a few minutes, so you can tweak selectors without refetching.</p></div>
+    </div>
+    {% if mode == "edit" %}
+    <form method="post" action="/adapters/{{ adapter_id }}/delete" onsubmit="return confirm('Delete this adapter?')">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <button class="danger" type="submit">Delete adapter</button>
+    </form>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
