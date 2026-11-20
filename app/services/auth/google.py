@@ -98,14 +98,22 @@ def _id_token_claims(tokens: dict[str, Any]) -> dict[str, Any]:
 
 
 def _checked_claims(claims: dict[str, Any], client_id: str, nonce: str) -> dict[str, Any]:
-    problems = {
+    checks = {
         "issuer": claims.get("iss") in ISSUERS,
         "audience": claims.get("aud") == client_id,
         "nonce": claims.get("nonce") == nonce,
-        "expiry": float(claims.get("exp", 0)) > time.time(),
+        "expiry": _expiry(claims) > time.time(),
         "email": bool(claims.get("email")),
     }
-    failed = [name for name, ok in problems.items() if not ok]
+    failed = [name for name, ok in checks.items() if not ok]
     if failed:
         raise OAuthError(f"ID token failed checks: {', '.join(failed)}")
     return claims
+
+
+def _expiry(claims: dict[str, Any]) -> float:
+    """A malformed `exp` counts as expired rather than crashing the callback."""
+    try:
+        return float(claims.get("exp", 0))
+    except (TypeError, ValueError):
+        return 0.0

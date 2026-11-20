@@ -7,6 +7,7 @@ from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 
 from app.api.csrf import require_csrf
+from app.api.deps import current_user
 from app.settings import Settings
 from app.web import adapters, auth, sources
 
@@ -16,8 +17,10 @@ SESSION_MAX_AGE_S = 30 * 24 * 3600
 
 router = APIRouter()
 router.include_router(auth.router)
-router.include_router(sources.router, dependencies=[Depends(require_csrf)])
-router.include_router(adapters.router, dependencies=[Depends(require_csrf)])
+# Every page outside sign-in needs a user, so a route can't forget to ask for one.
+_SIGNED_IN = [Depends(current_user), Depends(require_csrf)]
+router.include_router(sources.router, dependencies=_SIGNED_IN)
+router.include_router(adapters.router, dependencies=_SIGNED_IN)
 
 
 def mount_web(app: FastAPI, settings: Settings) -> None:

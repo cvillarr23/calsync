@@ -32,6 +32,7 @@ async def test_exchange_returns_the_identity(settings, google):
         ({"aud": "someone-else"}, "audience"),
         ({"iss": "https://evil.example"}, "issuer"),
         ({"exp": 1}, "expiry"),
+        ({"exp": "soon"}, "expiry"),
         ({"nonce": "other"}, "nonce"),
     ],
 )

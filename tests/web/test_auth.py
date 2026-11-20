@@ -1,5 +1,7 @@
+import re
 from urllib.parse import parse_qs, urlsplit
 
+import pytest
 from sqlalchemy import select
 
 from app.api.csrf import HEADER
@@ -23,6 +25,15 @@ def test_htmx_requests_get_hx_redirect(anon_client):
     response = anon_client.get("/sources/params", headers={"HX-Request": "true"})
     assert response.status_code == 401
     assert response.headers["HX-Redirect"] == "/auth/login"
+
+
+@pytest.mark.parametrize("path", ["/adapters/validate", "/adapters/test"])
+def test_adapter_editor_posts_need_sign_in(anon_client, path):
+    page = anon_client.get("/auth/signed-out")  # signed-out pages hand out a CSRF token too
+    token = re.search(r'name="csrf-token" content="([^"]+)"', page.text).group(1)
+    headers = {HEADER: token, "HX-Request": "true"}
+    response = anon_client.post(path, data={"yaml": "id: x"}, headers=headers)
+    assert response.status_code == 401
 
 
 def test_api_needs_sign_in(anon_client):

@@ -27,7 +27,7 @@ from app.schemas.pages import SourceRow
 from app.schemas.source import SourceCreate, SourcePatch
 from app.services import sources
 from app.services.adapter_suggest import suggest_adapters
-from app.services.errors import Invalid
+from app.services.errors import Invalid, NotFound
 from app.services.preview import preview_source
 from app.services.scheduling import SyncInProgress, SyncScheduler
 from app.services.source_validation import source_problems
@@ -172,7 +172,10 @@ async def sync_now(
     db.commit()  # end this request's transaction, so it can't block the run's writes
     busy = await _sync_unless_busy(scheduler, source_id)
     with request.app.state.sessions() as fresh:  # the run wrote through its own session
-        row = _row(fresh, registry, settings, scheduler, fresh.get(Source, source_id))
+        source = fresh.get(Source, source_id)
+        if source is None:  # deleted while it synced
+            raise NotFound(f"source {source_id} not found")
+        row = _row(fresh, registry, settings, scheduler, source)
     return render(request, "sources/_row.html", {"row": row, "busy": busy})
 
 
