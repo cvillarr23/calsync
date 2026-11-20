@@ -29,7 +29,7 @@ def _interval_problems(source: Source, settings: Settings) -> list[Problem]:
 
 
 def _adapter_problems(source: Source, registry: AdapterRegistry) -> list[Problem]:
-    definition = registry.get(source.adapter_id)
+    definition = registry.get(source.adapter_id, source.user_id)
     if definition is None:
         return [problem("adapter_id", f"adapter {source.adapter_id!r} not found")]
     return _param_problems(definition.params, source.params_json or {})

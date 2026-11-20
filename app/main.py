@@ -14,6 +14,7 @@ from app.adapters.html import HtmlEngine
 from app.adapters.pipeline import PipelineEngine
 from app.adapters.registry import AdapterRegistry
 from app.api import router
+from app.api.errors import add_error_handlers
 from app.db.engine import init_db, make_engine
 from app.services.definition_store import DefinitionStore
 from app.services.scheduling import SourceRuns, SyncScheduler
@@ -56,6 +57,7 @@ def create_app(settings: Settings | None = None, *, run_scheduler: bool = True) 
     app.state.adapters = AdapterRegistry.with_builtins()
     _register_engines(app.state.settings)
     app.include_router(router)
+    add_error_handlers(app)
 
     @app.get("/healthz")
     def healthz() -> dict[str, str]:

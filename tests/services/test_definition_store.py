@@ -18,6 +18,7 @@ def sessions(tmp_path):
     sessions = init_db(engine)
     with sessions.begin() as db:
         db.add(User(id=1, email="a@example.com"))
+        db.add(User(id=2, email="b@example.com"))
     yield sessions
     engine.dispose()
 
@@ -31,7 +32,7 @@ def test_stored_definitions_feed_the_registry(sessions):
     add_row(sessions, HTML_DEF)
     registry = AdapterRegistry()
     registry.add_source(DefinitionStore(sessions).definitions)
-    assert registry.get("rec-center").name == "Rec center schedule"
+    assert registry.get("rec-center", 1).name == "Rec center schedule"
     assert not registry.is_builtin("rec-center")
 
 
@@ -39,7 +40,7 @@ def test_stored_python_kind_is_rejected(sessions, caplog):
     add_row(sessions, PYTHON_DEF)
     add_row(sessions, HTML_DEF)
     with caplog.at_level(logging.WARNING):
-        definitions = DefinitionStore(sessions).definitions()
+        definitions = DefinitionStore(sessions).definitions(1)
 
     assert [d.id for d in definitions] == ["rec-center"]
     assert "sneaky" in caplog.text
@@ -50,4 +51,9 @@ def test_stored_python_kind_is_rejected(sessions, caplog):
 def test_unparseable_row_is_skipped(sessions):
     with sessions.begin() as db:
         db.add(AdapterDef(id="broken", user_id=1, yaml="id: [unclosed", version=1))
-    assert DefinitionStore(sessions).definitions() == []
+    assert DefinitionStore(sessions).definitions(1) == []
+
+
+def test_other_users_definitions_are_hidden(sessions):
+    add_row(sessions, HTML_DEF)
+    assert DefinitionStore(sessions).definitions(2) == []

@@ -1,20 +1,17 @@
 """`/api/sources`: the user's calendar sources, and Sync now."""
 
 from fastapi import APIRouter, BackgroundTasks, Response, status
-from sqlalchemy import select
-from sqlalchemy.orm import Session
 
-from app.adapters.registry import AdapterRegistry
 from app.api.deps import AppScheduler, AppSettings, CurrentUser, Registry
-from app.api.errors import conflict, not_found, unprocessable
-from app.db.models import Source, User
+from app.db.models import Source
 from app.db.session import Db
 from app.mappers.source import source_columns, source_out
 from app.mappers.sync_run import sync_run_out
 from app.schemas.source import SourceCreate, SourceOut, SourcePatch
 from app.schemas.sync_run import SyncRunOut
+from app.services import sources
+from app.services.errors import Conflict, NotFound
 from app.services.scheduling import SyncInProgress, SyncScheduler
-from app.services.source_validation import source_problems
 from app.settings import Settings
 
 router = APIRouter(prefix="/sources")
@@ -24,8 +21,7 @@ router = APIRouter(prefix="/sources")
 def list_sources(
     db: Db, user: CurrentUser, settings: AppSettings, scheduler: AppScheduler
 ) -> list[SourceOut]:
-    rows = db.scalars(select(Source).where(Source.user_id == user.id).order_by(Source.id))
-    return [_out(settings, scheduler, row) for row in rows]
+    return [_out(settings, scheduler, row) for row in sources.user_sources(db, user)]
 
 
 @router.post("", status_code=status.HTTP_201_CREATED)
@@ -38,10 +34,8 @@ def create_source(
     scheduler: AppScheduler,
     tasks: BackgroundTasks,
 ) -> SourceOut:
-    source = Source(user_id=user.id)
-    _apply(source, body, set(SourcePatch.model_fields), registry, settings)
-    db.add(source)
-    db.flush()
+    columns = source_columns(body, set(SourcePatch.model_fields))
+    source = sources.create_source(db, user, columns, registry, settings)
     return _scheduled_out(settings, scheduler, tasks, source)
 
 
@@ -49,7 +43,7 @@ def create_source(
 def get_source(
     source_id: int, db: Db, user: CurrentUser, settings: AppSettings, scheduler: AppScheduler
 ) -> SourceOut:
-    return _out(settings, scheduler, _owned_source(db, user, source_id))
+    return _out(settings, scheduler, sources.owned_source(db, user, source_id))
 
 
 @router.patch("/{source_id}")
@@ -63,8 +57,8 @@ def update_source(
     scheduler: AppScheduler,
     tasks: BackgroundTasks,
 ) -> SourceOut:
-    source = _owned_source(db, user, source_id)
-    _apply(source, body, body.model_fields_set, registry, settings)
+    source = sources.owned_source(db, user, source_id)
+    sources.update_source(source, source_columns(body, body.model_fields_set), registry, settings)
     db.flush()
     return _scheduled_out(settings, scheduler, tasks, source)
 
@@ -73,7 +67,7 @@ def update_source(
 def delete_source(
     source_id: int, db: Db, user: CurrentUser, scheduler: AppScheduler, tasks: BackgroundTasks
 ) -> Response:
-    db.delete(_owned_source(db, user, source_id))
+    db.delete(sources.owned_source(db, user, source_id))
     tasks.add_task(scheduler.source_deleted, source_id)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
@@ -83,22 +77,15 @@ async def sync_source(
     source_id: int, db: Db, user: CurrentUser, scheduler: AppScheduler
 ) -> SyncRunOut:
     """Sync now. Returns 409 while the source is already syncing, rather than queueing."""
-    _owned_source(db, user, source_id)
+    sources.owned_source(db, user, source_id)
     db.commit()  # end this request's transaction, so it can't block the run's writes
     try:
         result = await scheduler.sync_now(source_id)
     except SyncInProgress as err:
-        raise conflict("a sync of this source is already running") from err
+        raise Conflict("a sync of this source is already running") from err
     if result is None:
-        raise not_found(f"source {source_id} not found")
+        raise NotFound(f"source {source_id} not found")
     return sync_run_out(result)
-
-
-def _owned_source(db: Session, user: User, source_id: int) -> Source:
-    source = db.get(Source, source_id)
-    if source is None or source.user_id != user.id:
-        raise not_found(f"source {source_id} not found")
-    return source
 
 
 def _out(settings: Settings, scheduler: SyncScheduler, source: Source) -> SourceOut:
@@ -117,21 +104,3 @@ def _scheduled_out(
     run_at = scheduler.planned_run_at(source)
     tasks.add_task(scheduler.schedule, source.id, run_at)
     return source_out(settings, source, run_at)
-
-
-def _apply(
-    source: Source,
-    body: SourcePatch,
-    fields: set[str],
-    registry: AdapterRegistry,
-    settings: Settings,
-) -> None:
-    """Write the given fields, then validate the source as a whole.
-
-    A rejected change raises before the request's session commits, so nothing is saved.
-    """
-    for column, value in source_columns(body, fields).items():
-        setattr(source, column, value)
-    problems = source_problems(source, registry, settings)
-    if problems:
-        raise unprocessable(problems)

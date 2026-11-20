@@ -11,7 +11,7 @@ async def scrape(
     source: Source, registry: AdapterRegistry, runner: AdapterRunner, now: datetime
 ) -> list[ScrapedEvent]:
     """Run the source's adapter from now to the end of its lookahead window."""
-    definition = registry.get(source.adapter_id)
+    definition = registry.get(source.adapter_id, source.user_id)
     if definition is None:
         raise AdapterRunError(f"adapter {source.adapter_id!r} not found")
     window_end = now + timedelta(days=source.lookahead_days)
