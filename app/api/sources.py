@@ -89,9 +89,7 @@ async def sync_source(
 
 
 def _out(settings: Settings, scheduler: SyncScheduler, source: Source) -> SourceOut:
-    """The job's fire time; the planned one while a run has the job off the schedule."""
-    run_at = scheduler.next_run_at(source.id) or scheduler.planned_run_at(source)
-    return source_out(settings, source, run_at)
+    return source_out(settings, source, scheduler.shown_run_at(source))
 
 
 def _scheduled_out(

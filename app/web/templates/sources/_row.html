@@ -12,9 +12,9 @@
   </td>
   <td>{% if row.last_run_at %}<time data-local datetime="{{ row.last_run_at.isoformat() }}">{{ row.last_run_at | utc }}</time>{% else %}<span class="muted">never</span>{% endif %}</td>
   <td>
-    {% if row.next_run_at %}<time data-local datetime="{{ row.next_run_at.isoformat() }}">{{ row.next_run_at | utc }}</time><div class="muted small">estimated</div>
+    {% if row.next_run_at %}<time data-local datetime="{{ row.next_run_at.isoformat() }}">{{ row.next_run_at | utc }}</time>
     {% elif not row.enabled %}<span class="muted">paused</span>
-    {% else %}<span class="muted">after first sync</span>{% endif %}
+    {% else %}<span class="muted">not scheduled</span>{% endif %}
   </td>
   <td>{{ row.matched }}</td>
   <td>
@@ -22,6 +22,7 @@
     <button type="button" class="small" data-copy="{{ row.feed_url }}">Copy</button>
   </td>
   <td>
+    {% if busy %}<div class="muted small">Already syncing. Reload in a moment to see the result.</div>{% endif %}
     <button class="primary" hx-post="/sources/{{ row.id }}/sync" hx-target="#source-{{ row.id }}" hx-swap="outerHTML" hx-disabled-elt="this">
       Sync now <span class="htmx-indicator">…</span>
     </button>

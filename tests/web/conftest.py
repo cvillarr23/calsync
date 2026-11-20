@@ -25,8 +25,10 @@ RINK_EVENTS = [
 
 @pytest.fixture
 def runner(client):
+    """Fakes both runners: the preview's and the scheduler's, which Sync now uses."""
     fake = FakeRunner(events=RINK_EVENTS)
     client.app.state.runner = fake
+    client.app.state.scheduler.runs.runner = fake
     return fake
 
 

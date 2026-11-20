@@ -19,7 +19,7 @@ Your session lasts 30 days. **Sign out** in the top-right ends it; your sources 
 The **Sources** page lists each source with:
 
 - **Status**: `ok`, `error` with the error and a hint about what to do, or `never run`.
-- **Last run** and **Next run**. The next run is estimated from the last run and the source's interval.
+- **Last run** and **Next run**. The next run is the source's interval after the last one, and longer while the site keeps failing; see [Scheduling](api.md#scheduling). A paused source has no next run.
 - **Matched**: how many upcoming events pass the source's filters right now.
 - **Feed**: the source's `.ics` URL, with a **Copy** button. Anyone with this URL can read the feed; see [Calendar feeds](feeds.md).
 - **Sync now** runs the source immediately and updates its row.

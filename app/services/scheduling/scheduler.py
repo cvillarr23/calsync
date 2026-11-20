@@ -89,6 +89,10 @@ class SyncScheduler:
         job = self._aps.get_job(_job_id(source_id))
         return job.next_run_time if job else None
 
+    def shown_run_at(self, source: Source) -> datetime | None:
+        """The job's fire time; the planned one while a run has the job off the schedule."""
+        return self.next_run_at(source.id) or self.planned_run_at(source)
+
     async def sync_now(self, source_id: int) -> SyncResult | None:
         """Run the source now, enabled or not. Raises `SyncInProgress` if it is running."""
         return await self._run(source_id, scheduled=False)

@@ -24,7 +24,8 @@ def test_create_source_from_the_form(client, adapter, runner):
     page = client.get("/")
     assert "Rink" in page.text
     assert source["feed_url"] in page.text
-    assert "after first sync" in page.text
+    next_run = client.app.state.scheduler.next_run_at(source["id"])
+    assert next_run.isoformat() in page.text  # a new source is due straight away
 
 
 def test_form_errors_are_shown_next_to_fields(client, adapter):
@@ -58,7 +59,27 @@ def test_sync_now_swaps_in_the_updated_row(client, adapter, runner):
     assert row.text.lstrip().startswith(f'<tr id="source-{source["id"]}"')
     assert "status-ok" in row.text
     assert "<td>1</td>" in row.text  # only Public Skate passes the filters
-    assert "estimated" in row.text
+    next_run = client.app.state.scheduler.next_run_at(source["id"])
+    assert next_run is not None and next_run.isoformat() in row.text
+
+
+def test_sync_now_while_syncing_says_so(client, adapter, runner):
+    source = create(client)
+    lock = client.app.state.scheduler.runs.lock(source["id"])
+    client.portal.call(lock.acquire)
+    try:
+        row = client.post(f"/sources/{source['id']}/sync").text
+    finally:
+        client.portal.call(lock.release)
+    assert "Already syncing" in row
+    assert runner.calls == []
+
+
+def test_deleting_a_source_drops_its_job(client, adapter):
+    source = create(client)
+    assert client.app.state.scheduler.next_run_at(source["id"]) is not None
+    client.post(f"/sources/{source['id']}/delete")
+    assert client.app.state.scheduler.next_run_at(source["id"]) is None
 
 
 def test_sync_error_shows_a_hint(client, adapter, runner):

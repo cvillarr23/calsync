@@ -2,14 +2,14 @@
 
 from typing import Any
 
-from fastapi import APIRouter, Request, status
+from fastapi import APIRouter, BackgroundTasks, Request, status
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from pydantic import ValidationError
 from sqlalchemy.orm import Session
 
 from app.adapters.registry import AdapterRegistry
 from app.adapters.schema import error_list
-from app.api.deps import AppSettings, CurrentUser, Registry
+from app.api.deps import AppScheduler, AppSettings, CurrentUser, Registry
 from app.db.base import utcnow
 from app.db.models import Source, User
 from app.db.models.source import DEFAULT_LOOKAHEAD_DAYS
@@ -29,8 +29,9 @@ from app.services import sources
 from app.services.adapter_suggest import suggest_adapters
 from app.services.errors import Invalid
 from app.services.preview import preview_source
+from app.services.scheduling import SyncInProgress, SyncScheduler
 from app.services.source_validation import source_problems
-from app.services.sync import matched_events, run_source
+from app.services.sync import matched_events
 from app.settings import Settings
 from app.web.rendering import render
 
@@ -42,9 +43,14 @@ FORM_FIELDS = set(SourcePatch.model_fields) - {"target_calendar_id"}
 
 @router.get("/")
 def source_list(
-    request: Request, db: Db, user: CurrentUser, registry: Registry, settings: AppSettings
+    request: Request,
+    db: Db,
+    user: CurrentUser,
+    registry: Registry,
+    settings: AppSettings,
+    scheduler: AppScheduler,
 ) -> HTMLResponse:
-    rows = [_row(db, registry, settings, s) for s in sources.user_sources(db, user)]
+    rows = [_row(db, registry, settings, scheduler, s) for s in sources.user_sources(db, user)]
     return render(request, "sources/list.html", {"user": user, "rows": rows})
 
 
@@ -55,7 +61,13 @@ def new_source(request: Request, user: CurrentUser, registry: Registry) -> HTMLR
 
 @router.post("/sources/new")
 async def create_source(
-    request: Request, db: Db, user: CurrentUser, registry: Registry, settings: AppSettings
+    request: Request,
+    db: Db,
+    user: CurrentUser,
+    registry: Registry,
+    settings: AppSettings,
+    scheduler: AppScheduler,
+    tasks: BackgroundTasks,
 ) -> Response:
     data = await _posted(request, user, registry)
     try:
@@ -65,6 +77,7 @@ async def create_source(
         )
     except (ValidationError, Invalid) as err:
         return _rejected(request, user, registry, None, data, err)
+    _reschedule(scheduler, tasks, source)
     return RedirectResponse(f"/?created={source.id}", status.HTTP_303_SEE_OTHER)
 
 
@@ -119,6 +132,8 @@ async def update_source(
     user: CurrentUser,
     registry: Registry,
     settings: AppSettings,
+    scheduler: AppScheduler,
+    tasks: BackgroundTasks,
 ) -> Response:
     source = sources.owned_source(db, user, source_id)
     data = await _posted(request, user, registry)
@@ -129,12 +144,16 @@ async def update_source(
     except (ValidationError, Invalid) as err:
         db.refresh(source)
         return _rejected(request, user, registry, source, data, err)
+    _reschedule(scheduler, tasks, source)
     return RedirectResponse(f"/?saved={source.id}", status.HTTP_303_SEE_OTHER)
 
 
 @router.post("/sources/{source_id}/delete")
-def delete_source(source_id: int, db: Db, user: CurrentUser) -> RedirectResponse:
+def delete_source(
+    source_id: int, db: Db, user: CurrentUser, scheduler: AppScheduler, tasks: BackgroundTasks
+) -> RedirectResponse:
     db.delete(sources.owned_source(db, user, source_id))
+    tasks.add_task(scheduler.source_deleted, source_id)
     return RedirectResponse("/", status.HTTP_303_SEE_OTHER)
 
 
@@ -146,13 +165,15 @@ async def sync_now(
     user: CurrentUser,
     registry: Registry,
     settings: AppSettings,
+    scheduler: AppScheduler,
 ) -> HTMLResponse:
     """Runs the sync inside the request and swaps in the updated row."""
-    source = sources.owned_source(db, user, source_id)
-    await run_source(db, source, registry=registry, runner=request.app.state.runner)
-    db.flush()
-    row = _row(db, registry, settings, source)
-    return render(request, "sources/_row.html", {"row": row})
+    sources.owned_source(db, user, source_id)
+    db.commit()  # end this request's transaction, so it can't block the run's writes
+    busy = await _sync_unless_busy(scheduler, source_id)
+    with request.app.state.sessions() as fresh:  # the run wrote through its own session
+        row = _row(fresh, registry, settings, scheduler, fresh.get(Source, source_id))
+    return render(request, "sources/_row.html", {"row": row, "busy": busy})
 
 
 async def _posted(request: Request, user: User, registry: AdapterRegistry) -> dict[str, Any]:
@@ -162,10 +183,30 @@ async def _posted(request: Request, user: User, registry: AdapterRegistry) -> di
     return source_form_data(form, definition)
 
 
-def _row(db: Session, registry: AdapterRegistry, settings: Settings, source: Source) -> SourceRow:
+def _row(
+    db: Session,
+    registry: AdapterRegistry,
+    settings: Settings,
+    scheduler: SyncScheduler,
+    source: Source,
+) -> SourceRow:
     definition = registry.get(source.adapter_id, source.user_id)
     matched = len(matched_events(db, source, utcnow()))
-    return source_row(settings, source, definition, matched)
+    return source_row(settings, source, definition, matched, scheduler.shown_run_at(source))
+
+
+def _reschedule(scheduler: SyncScheduler, tasks: BackgroundTasks, source: Source) -> None:
+    """After the request commits, so a due job can't run before the source is saved."""
+    tasks.add_task(scheduler.schedule, source.id, scheduler.planned_run_at(source))
+
+
+async def _sync_unless_busy(scheduler: SyncScheduler, source_id: int) -> bool:
+    """Sync now; True when a run was already going, which finishes the job instead."""
+    try:
+        await scheduler.sync_now(source_id)
+    except SyncInProgress:
+        return True
+    return False
 
 
 def _previewable(data: dict[str, Any]) -> dict[str, Any]:
