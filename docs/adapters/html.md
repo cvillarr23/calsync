@@ -105,7 +105,7 @@ Set `pagination.mode` to one of these:
 |---|---|---|
 | `none` | | Reads `fetch.url` once. This is the default. |
 | `url_template` | `url_template`, `step_days` | Builds one URL per step across the sync window. `url_template` is a template that also knows `{{date}}`, the first day of each step. `fetch.url` is omitted, because the template gives every page's URL. |
-| `click_next` | `selector`, `max_pages` | Headless only. Reads the first page, then clicks the `selector` button and reads again, up to `max_pages` pages in all. It stops early when the button is gone or disabled. |
+| `click_next` | `selector`, `max_pages` | Headless only. Reads the first page, then clicks the `selector` button and reads again, up to `max_pages` pages in all. It stops early when the button is gone or disabled, or when a click doesn't change the page within 5 seconds. After each click it waits for the page to change, so pagers that load the next page by XHR are read correctly. |
 
 ```yaml
 fetch:

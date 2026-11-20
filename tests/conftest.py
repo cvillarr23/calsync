@@ -1,3 +1,5 @@
+import base64
+
 import pytest
 
 REQUIRED_ENV = {
@@ -5,7 +7,7 @@ REQUIRED_ENV = {
     "GOOGLE_CLIENT_ID": "placeholder-client-id",
     "GOOGLE_CLIENT_SECRET": "placeholder-client-secret",
     "CALSYNC_SESSION_SECRET": "placeholder-session-secret",
-    "CALSYNC_TOKEN_ENC_KEY": "placeholder-token-key",
+    "CALSYNC_TOKEN_ENC_KEY": base64.urlsafe_b64encode(bytes(32)).decode(),
 }
 
 

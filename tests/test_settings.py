@@ -47,3 +47,10 @@ def test_invalid_value_is_named(required_env):
 def test_allowed_emails_parsed(required_env):
     required_env.setenv("CALSYNC_ALLOWED_EMAILS", " A@example.com, ,b@example.org ")
     assert load_settings().allowed_emails == ["a@example.com", "b@example.org"]
+
+
+@pytest.mark.parametrize("key", ["your-fernet-key", "c2hvcnQ="])
+def test_token_key_must_be_a_fernet_key(required_env, key):
+    required_env.setenv("CALSYNC_TOKEN_ENC_KEY", key)
+    with pytest.raises(SettingsError, match="CALSYNC_TOKEN_ENC_KEY"):
+        load_settings()

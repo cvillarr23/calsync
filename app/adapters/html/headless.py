@@ -41,6 +41,9 @@ DEAD_PROXY = "http://127.0.0.1:9"
 """The discard port: nothing listens, so a request that escaped interception fails."""
 
 FETCHED_RESOURCES = {"document", "script", "xhr", "fetch"}
+
+_PAGER_CHANGE_WAIT_S = 5.0
+"""How long `click_next` waits for a click to change the page before it stops paging."""
 """Resource types worth a request; images, styles, fonts and media can't add events."""
 
 _HOP_BY_HOP = {"content-encoding", "content-length", "transfer-encoding", "connection"}
@@ -129,7 +132,7 @@ class HeadlessBrowser:
         page = await self._context.new_page()
         try:
             await self._open(page, url, wait_for)
-            return HtmlPage(url=url, html=await page.content())
+            return HtmlPage(url=page.url, html=await page.content())
         finally:
             await page.close()
 
@@ -143,21 +146,42 @@ class HeadlessBrowser:
         page = await self._context.new_page()
         try:
             await self._open(page, url, wait_for)
-            pages = [HtmlPage(url=url, html=await page.content())]
+            pages = [HtmlPage(url=page.url, html=await page.content())]
             while len(pages) < max_pages and await self._click_next(page, next_selector):
                 await self._settle(page, wait_for)
-                pages.append(HtmlPage(url=page.url, html=await page.content()))
+                html = await self._changed_html(page, pages[-1].html)
+                if html is None:
+                    break
+                pages.append(HtmlPage(url=page.url, html=html))
             return pages
         finally:
             await page.close()
 
     async def _open(self, page: Page, url: str, wait_for: str | None) -> None:
         try:
-            await self._watched(page.goto(url, wait_until="load" if wait_for else "networkidle"))
+            response = await self._watched(
+                page.goto(url, wait_until="load" if wait_for else "networkidle")
+            )
         except PlaywrightError as err:
             self._interceptor.raise_fatal()
             raise _fetch_error(url, err) from None
+        if response is not None and response.status >= 400:
+            raise FetchError(f"headless: GET {url}: HTTP {response.status}")
         await self._settle(page, wait_for)
+
+    async def _changed_html(self, page: Page, before: str) -> str | None:
+        """The page's HTML once a click has changed it; None if it never does.
+
+        Pagers that swap content in by XHR leave `networkidle` and `wait_for`
+        already satisfied, so reading straight away would return the old page.
+        """
+        with anyio.move_on_after(_PAGER_CHANGE_WAIT_S):
+            while True:
+                html = await page.content()
+                if html != before:
+                    return html
+                await anyio.sleep(0.1)
+        return None
 
     async def _settle(self, page: Page, wait_for: str | None) -> None:
         """Wait for `wait_for` when given; otherwise until the network goes quiet."""
@@ -171,8 +195,9 @@ class HeadlessBrowser:
             raise _fetch_error(page.url, err) from None
         self._interceptor.raise_fatal()
 
-    async def _watched(self, call: Awaitable[Any]) -> None:
+    async def _watched(self, call: Awaitable[Any]) -> Any:
         """Await a page call, but stop as soon as a request has failed the run."""
+        result = None
         async with anyio.create_task_group() as group:
 
             async def stop_on_failure() -> None:
@@ -180,9 +205,10 @@ class HeadlessBrowser:
                 group.cancel_scope.cancel()
 
             group.start_soon(stop_on_failure)
-            await call
+            result = await call
             group.cancel_scope.cancel()
         self._interceptor.raise_fatal()
+        return result
 
     async def _click_next(self, page: Page, selector: str) -> bool:
         button = await page.query_selector(f"css={selector}")
@@ -221,7 +247,10 @@ async def headless_browser(
 async def _chromium() -> AsyncIterator:
     async with async_playwright() as playwright:
         try:
-            browser = await playwright.chromium.launch(proxy={"server": DEAD_PROXY})
+            browser = await playwright.chromium.launch(
+                proxy={"server": DEAD_PROXY, "bypass": "<-loopback>"},
+                args=["--force-webrtc-ip-handling-policy=disable_non_proxied_udp"],
+            )
         except PlaywrightError as err:
             raise HeadlessUnavailable(f"can't start headless Chromium: {err.message}") from None
         try:

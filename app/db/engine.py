@@ -14,7 +14,7 @@ DB_FILENAME = "calsync.db"
 
 
 def make_engine(data_dir: Path) -> Engine:
-    """An engine for `<data_dir>/calsync.db`, with foreign keys enforced and WAL journaling."""
+    """An engine for `<data_dir>/calsync.db`: foreign keys, WAL, and a 15 s lock wait."""
     data_dir.mkdir(parents=True, exist_ok=True)
     engine = create_engine(f"sqlite:///{data_dir / DB_FILENAME}")
     event.listen(engine, "connect", _configure_sqlite)
@@ -34,4 +34,5 @@ def _configure_sqlite(dbapi_connection: Any, _record: Any) -> None:
     cursor = dbapi_connection.cursor()
     cursor.execute("PRAGMA foreign_keys=ON")
     cursor.execute("PRAGMA journal_mode=WAL")
+    cursor.execute("PRAGMA busy_timeout=15000")
     cursor.close()

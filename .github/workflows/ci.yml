@@ -79,7 +79,7 @@ jobs:
             -e GOOGLE_CLIENT_ID=placeholder-client-id \
             -e GOOGLE_CLIENT_SECRET=placeholder-client-secret \
             -e CALSYNC_SESSION_SECRET=placeholder-session-secret \
-            -e CALSYNC_TOKEN_ENC_KEY=placeholder-token-key \
+            -e CALSYNC_TOKEN_ENC_KEY="$(python3 -c 'import base64, os; print(base64.urlsafe_b64encode(os.urandom(32)).decode())')" \
             calsync:ci
           for _ in $(seq 30); do
             curl -fsS http://127.0.0.1:8000/healthz && break
