@@ -44,23 +44,34 @@ def google():
 
 
 @pytest.fixture
-def anon_client(app_env, google):
-    """A test client with the app's lifespan running and Google faked, not signed in.
+def make_client(app_env, google):
+    """Builds signed-out test clients from the environment as it is when called.
 
-    The base URL is https because the session cookie is Secure on https instances.
+    Each runs the app's lifespan with Google faked. The base URL is https because
+    the session cookie is Secure on https instances.
     The scheduler is paused: jobs exist, but no real sync starts behind a test's back.
     """
+    from contextlib import ExitStack
+
     from fastapi.testclient import TestClient
 
     from app.main import create_app
     from app.services.auth import GoogleOAuth
     from app.settings import load_settings
 
-    settings = load_settings()
-    app = create_app(settings, run_scheduler=False)
-    app.state.google = GoogleOAuth(settings, transport=google.transport)
-    with TestClient(app, base_url="https://testserver") as test_client:
-        yield test_client
+    def build():
+        settings = load_settings()
+        app = create_app(settings, run_scheduler=False)
+        app.state.google = GoogleOAuth(settings, transport=google.transport)
+        return stack.enter_context(TestClient(app, base_url="https://testserver"))
+
+    with ExitStack() as stack:
+        yield build
+
+
+@pytest.fixture
+def anon_client(make_client):
+    return make_client()
 
 
 @pytest.fixture
