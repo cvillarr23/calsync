@@ -1,0 +1,29 @@
+<tr id="source-{{ row.id }}">
+  <td>
+    <a href="/sources/{{ row.id }}"><strong>{{ row.name }}</strong></a>
+    <div class="muted small">{{ row.adapter_name }}{% if not row.enabled %} · paused{% endif %}</div>
+  </td>
+  <td>
+    <span class="{{ 'status-ok' if row.status == 'ok' else ('status-error' if row.status == 'error' else 'muted') }}">{{ row.status }}</span>
+    {% if row.error %}
+    <div class="field-error">{{ row.error }}</div>
+    {% if row.hint %}<div class="hint muted">{{ row.hint.text }} <a href="{{ row.hint.url }}" target="_blank" rel="noopener">More</a></div>{% endif %}
+    {% endif %}
+  </td>
+  <td>{% if row.last_run_at %}<time data-local datetime="{{ row.last_run_at.isoformat() }}">{{ row.last_run_at | utc }}</time>{% else %}<span class="muted">never</span>{% endif %}</td>
+  <td>
+    {% if row.next_run_at %}<time data-local datetime="{{ row.next_run_at.isoformat() }}">{{ row.next_run_at | utc }}</time><div class="muted small">estimated</div>
+    {% elif not row.enabled %}<span class="muted">paused</span>
+    {% else %}<span class="muted">after first sync</span>{% endif %}
+  </td>
+  <td>{{ row.matched }}</td>
+  <td>
+    <code class="feed">{{ row.feed_url }}</code>
+    <button type="button" class="small" data-copy="{{ row.feed_url }}">Copy</button>
+  </td>
+  <td>
+    <button class="primary" hx-post="/sources/{{ row.id }}/sync" hx-target="#source-{{ row.id }}" hx-swap="outerHTML" hx-disabled-elt="this">
+      Sync now <span class="htmx-indicator">…</span>
+    </button>
+  </td>
+</tr>

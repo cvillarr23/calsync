@@ -15,14 +15,15 @@ async def scrape(
     if definition is None:
         raise AdapterRunError(f"adapter {source.adapter_id!r} not found")
     window_end = now + timedelta(days=source.lookahead_days)
-    return await runner(definition, _params(definition, source), now, window_end)
+    params = params_with_defaults(definition, source.params_json or {})
+    return await runner(definition, params, now, window_end)
 
 
-def _params(definition: AdapterDefinition, source: Source) -> dict[str, Any]:
-    """The source's params over the definition's defaults."""
+def params_with_defaults(definition: AdapterDefinition, given: dict[str, Any]) -> dict[str, Any]:
+    """The given params over the definition's defaults."""
     defaults = {
         name: param.default
         for name, param in definition.params.items()
         if param.default is not None
     }
-    return {**defaults, **source.params_json}
+    return {**defaults, **given}

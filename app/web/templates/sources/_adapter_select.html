@@ -1,0 +1,7 @@
+<select id="adapter_id" name="adapter_id" hx-get="/sources/params" hx-target="#params" hx-include="[name=url]"
+        hx-trigger="change{% if autoload %}, load{% endif %}">
+  <option value="">Choose an adapter…</option>
+  {% for adapter in adapters %}
+  <option value="{{ adapter.id }}" {% if adapter.id == selected %}selected{% endif %}>{{ adapter.name }} ({{ adapter.id }})</option>
+  {% endfor %}
+</select>

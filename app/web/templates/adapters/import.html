@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}Import adapter{% endblock %}
+{% block content %}
+<h1>Import an adapter</h1>
+<form class="card" method="post" action="/adapters/import">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  <label for="yaml">Paste a definition <span class="muted">· YAML or JSON, e.g. a file someone exported from calsync</span></label>
+  <textarea id="yaml" name="yaml" class="code" spellcheck="false" style="min-height:18rem">{{ text }}</textarea>
+  {% if problems %}<div class="notice error" style="margin-top:.75rem">Not imported</div>{% include "adapters/_problems.html" %}{% endif %}
+  <div class="row-actions" style="margin-top:1rem"><button class="primary" type="submit">Import</button><a href="/adapters">Cancel</a></div>
+</form>
+{% endblock %}

@@ -1,0 +1,9 @@
+{% set selected = matches[0].id if matches else "" %}
+{% set autoload = matches | length > 0 %}
+{% include "sources/_adapter_select.html" %}
+{% if url %}
+<div class="small muted" style="margin-top:.25rem">
+  {% if matches %}Suggested from the URL's host: {{ matches | map(attribute="name") | join(", ") }}.
+  {% else %}No adapter lists this host in <code>match_hosts</code>. Pick one, or <a href="/adapters/new">write a new adapter</a>.{% endif %}
+</div>
+{% endif %}
