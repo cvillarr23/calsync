@@ -7,6 +7,7 @@ from fastapi import Depends, Request
 from app.adapters.registry import AdapterRegistry
 from app.db.models import User
 from app.db.session import Db
+from app.services.scheduling import SyncScheduler
 from app.services.users import local_user
 from app.settings import Settings
 
@@ -24,6 +25,11 @@ def _settings(request: Request) -> Settings:
     return request.app.state.settings
 
 
+def _scheduler(request: Request) -> SyncScheduler:
+    return request.app.state.scheduler
+
+
 CurrentUser = Annotated[User, Depends(current_user, scope="function")]
 Registry = Annotated[AdapterRegistry, Depends(_registry)]
 AppSettings = Annotated[Settings, Depends(_settings)]
+AppScheduler = Annotated[SyncScheduler, Depends(_scheduler)]

@@ -25,7 +25,7 @@ python -c "import base64, os; print(base64.urlsafe_b64encode(os.urandom(32)).dec
 |---|---|---|
 | `CALSYNC_DATA_DIR` | `/data` | The directory for the SQLite database, `calsync.db`. It holds your sources, user adapter definitions and stored events. Mount a persistent volume here and back it up. |
 | `CALSYNC_ALLOWED_EMAILS` | *(empty)* | A comma-separated list of Google accounts allowed to sign in. Matching is case-insensitive. |
-| `CALSYNC_MIN_INTERVAL_MIN` | `30` | The shortest sync interval, in minutes, that a source may use. |
+| `CALSYNC_MIN_INTERVAL_MIN` | `30` | The shortest sync interval, in minutes, that a source may use. If you raise it, existing sources with a shorter interval are scheduled at the new minimum. |
 | `CALSYNC_FETCH_TIMEOUT_S` | `15` | The time limit, in seconds, for each adapter run. |
 | `CALSYNC_FETCH_MAX_PAGES` | `20` | The most pages or requests one adapter run may make. In [headless mode](adapters/html.md#headless-trade-offs), every script and XHR the page loads counts too. |
 | `CALSYNC_FETCH_MAX_BYTES` | `2097152` | The most bytes (2 MiB) one adapter run may download. |
@@ -49,4 +49,5 @@ The image `ghcr.io/cvillarr23/calsync` is built for `linux/amd64` and `linux/arm
 - `CALSYNC_DATA_DIR` is `/data`, which is declared as a volume. Mount a named volume or a host directory there.
 - The app runs as the non-root user `pwuser`, with uid and gid `1001`. A named volume needs no setup. If you bind-mount a host directory, make it writable by uid 1001: `chown 1001:1001 /path/to/data`.
 - The image's `HEALTHCHECK` polls `GET /healthz`.
+- On shutdown, calsync lets syncs that are running finish, for up to `CALSYNC_FETCH_TIMEOUT_S` seconds, and then stops them. A stopped sync saves nothing, and runs again on the next start. `docker stop` waits only 10 seconds before killing the container, so give it longer: `docker stop -t 30`, `--stop-timeout 30` on `docker run`, or `stop_grace_period: 30s` in Compose.
 - Pin a version tag or `sha-` tag in production, and upgrade deliberately.

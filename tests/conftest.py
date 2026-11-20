@@ -38,13 +38,16 @@ def app_env(required_env, tmp_path):
 
 @pytest.fixture
 def client(app_env):
-    """A test client with the app's lifespan running, so the database is open."""
+    """A test client with the app's lifespan running, so the database is open.
+
+    The scheduler is paused: jobs exist, but no real sync starts behind a test's back.
+    """
     from fastapi.testclient import TestClient
 
     from app.main import create_app
     from app.settings import load_settings
 
-    with TestClient(create_app(load_settings())) as test_client:
+    with TestClient(create_app(load_settings(), run_scheduler=False)) as test_client:
         yield test_client
 
 
